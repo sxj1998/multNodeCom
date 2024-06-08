@@ -1,0 +1,17 @@
+{
+    "files.associations": {
+        "stdint.h": "c",
+        "tuple": "c",
+        "string_view": "c",
+        "routeinterface.h": "c",
+        "routehandle.h": "c",
+        "array": "c",
+        "string": "c",
+        "string.h": "c",
+        "*.tcc": "c",
+        "complex": "c",
+        "utilsprintf.h": "c",
+        "unistd.h": "c",
+        "utilsassert.h": "c"
+    }
+}

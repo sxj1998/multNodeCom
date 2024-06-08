@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"string.h": "c",
+			"stdlib.h": "c",
+			"array": "c",
+			"string": "c",
+			"string_view": "c",
+			"cstdlib": "c",
+			"*.tcc": "c",
+			"communicateinterface.h": "c"
+		}
+	}
+}
