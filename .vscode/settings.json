@@ -12,6 +12,7 @@
         "complex": "c",
         "utilsprintf.h": "c",
         "unistd.h": "c",
-        "utilsassert.h": "c"
+        "utilsassert.h": "c",
+        "ringbuffer.h": "c"
     }
 }

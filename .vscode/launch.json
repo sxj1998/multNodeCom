@@ -8,7 +8,7 @@
             "name": "(gdb) 启动",
             "type": "cppdbg",
             "request": "launch",
-            "program": "/home/shexingju/CODE/C_CPP_WORK_SPACE/C_communicate/build/COMMUNICATE",
+            "program": "/home/shexingju/CODE/C_CPP_WORK_SPACE/multNodeCom/build/test_serial",
             "args": [],
             "stopAtEntry": true,
             "cwd": "${fileDirname}",

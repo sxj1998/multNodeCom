@@ -27,7 +27,21 @@ typedef struct
     uint16_t bus_tx_buffer_size;
 }bus_driver_t;
 
-int8_t bus_driver_register(bus_driver_t *bus_driver, const bus_interface_i* interface, uint16_t bus_rx_buffer_size, uint16_t bus_tx_buffer_size, const char *bus_name, BUS_TYPE bus_type, uint8_t bus_id);
+int8_t bus_driver_register(bus_driver_t **bus_driver, const bus_interface_i* interface, uint16_t bus_rx_buffer_size, uint16_t bus_tx_buffer_size, const char *bus_name, BUS_TYPE bus_type, uint8_t bus_id);
+
+int bus_init(bus_driver_t** bus);
+
+int bus_open(bus_driver_t** bus);
+
+int bus_close(bus_driver_t** bus);
+
+int bus_sync_rx(bus_driver_t** bus);
+
+int bus_sync_tx(bus_driver_t** bus);
+
+int bus_write(bus_driver_t** bus, uint8_t *data, uint16_t length);
+
+int bus_read(bus_driver_t** bus, uint8_t *data, uint16_t length);
 
 #ifdef __cplusplus
 }

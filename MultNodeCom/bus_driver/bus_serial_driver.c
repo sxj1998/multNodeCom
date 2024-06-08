@@ -87,21 +87,21 @@ static int serial_init(void *self)
     int* fd = &(dev->bus_device.fd);
     int ret = 0;
 
-    printf("serial init DEV_NAME %s\r\n",dev->dev_name);
+    TI_DEBUG("serial init DEV_NAME %s ",dev->dev_name);
         /* 打开串口 */
     *fd = open(dev->dev_name, O_RDWR | O_NOCTTY | O_NDELAY);
     if (*fd < 0) {
-        printf("open dev fail!\n");
+        TI_DEBUG("open dev fail! ");
         ret = -1;
     } else {
-        printf("DEV %s fd:%d\n", dev->dev_name, *fd);
+        TI_DEBUG("DEV %s fd:%d ", dev->dev_name, *fd);
         fcntl(*fd, F_SETFL, 0);
     }
 
     /* 设置串口 */
     ret = uart_setup(*fd);
     if (ret < 0) {
-        printf("uart setup fail!\n");
+        TI_DEBUG("uart setup fail! ");
         close(*fd);
         ret = -1;
     }
@@ -149,7 +149,7 @@ static int serial_write_buff(void *self, uint8_t *data, uint16_t length)
     write_rb_ret = rt_ringbuffer_put_force(write_rb, (uint8_t *)data, (uint32_t)length);
 
     if(write_rb_ret > 0){
-        printf("serial %s write :",dev->dev_name);
+        TI_DEBUG("serial %s write :",dev->dev_name);
         utils_buff_print(data,length);
     }
     
@@ -165,7 +165,7 @@ static int serial_read_buff(void *self, uint8_t *data, uint16_t length)
     read_rb_ret = rt_ringbuffer_get(read_rb, (uint8_t *)data, (uint32_t)length);
     
     if(read_rb_ret > 0){
-        printf("serial %s read:",dev->dev_name);
+        TI_DEBUG("serial %s read:",dev->dev_name);
         utils_buff_print(data,read_rb_ret);
     }
    
@@ -222,7 +222,7 @@ bus_serial_driver_t* bus_serial_driver_register(const char* dev_name)
     strncpy(serial_driver->dev_name, dev_name, sizeof(serial_driver->dev_name) - 1);
     serial_driver->dev_name[sizeof(serial_driver->dev_name) - 1] = '\0'; // 确保字符串以空字符结尾
 
-    int8_t ret = bus_driver_register(serial_driver->bus_driver, &bus_serial_interface, 256, 256, "serial", SERIAL, 0); 
+    int8_t ret = bus_driver_register(&serial_driver->bus_driver, &bus_serial_interface, 256, 256, "serial", SERIAL, 0); 
     if(ret < 0)
         goto free_serial_driver;
 
