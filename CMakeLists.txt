@@ -37,3 +37,25 @@ target_compile_options(MultNodeComProj PRIVATE -g -O0)
 # specify the C standard
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED True)
+
+
+# 获取test目录中的所有.c文件
+file(GLOB TEST_SOURCES "${PROJECT_SOURCE_DIR}/test/*.c")
+
+# 为每个test目录中的.c文件创建一个可执行文件
+foreach(TEST_SOURCE ${TEST_SOURCES})
+    # 获取文件名，不带路径和扩展名
+    get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
+    
+    # 创建可执行文件
+    add_executable(${TEST_NAME} ${TEST_SOURCE} ${ALL_SOURCES})
+    
+    # 链接库
+    target_link_libraries(${TEST_NAME} MultNodeCom Threads::Threads)
+    
+    # 指定include目录
+    target_include_directories(${TEST_NAME} PUBLIC "${PROJECT_BINARY_DIR}" "${PROJECT_SOURCE_DIR}/MultNodeCom")
+    
+    # 编译选项
+    target_compile_options(${TEST_NAME} PRIVATE -g -O0)
+endforeach()
