@@ -213,7 +213,7 @@ static int rb_serial_read_sync(void *self)
     return serial_read_ret;
 }
 
-bus_serial_driver_t* bus_serial_driver_register(const char* dev_name)
+bus_serial_driver_t* bus_serial_driver_register(const char* dev_name, uint8_t bus_id)
 {
     
     bus_serial_driver_t* serial_driver = NULL;
@@ -222,7 +222,7 @@ bus_serial_driver_t* bus_serial_driver_register(const char* dev_name)
     strncpy(serial_driver->dev_name, dev_name, sizeof(serial_driver->dev_name) - 1);
     serial_driver->dev_name[sizeof(serial_driver->dev_name) - 1] = '\0'; // 确保字符串以空字符结尾
 
-    int8_t ret = bus_driver_register(&serial_driver->bus_driver, &bus_serial_interface, 256, 256, "serial", SERIAL, 0); 
+    int8_t ret = bus_driver_register(&serial_driver->bus_driver, &bus_serial_interface, 256, 256, "serial", SERIAL, bus_id); 
     if(ret < 0)
         goto free_serial_driver;
 

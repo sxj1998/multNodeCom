@@ -13,6 +13,9 @@
         "utilsprintf.h": "c",
         "unistd.h": "c",
         "utilsassert.h": "c",
-        "ringbuffer.h": "c"
+        "ringbuffer.h": "c",
+        "communicateinterface.h": "c",
+        "route_interface.h": "c",
+        "bus_type.h": "c"
     }
 }

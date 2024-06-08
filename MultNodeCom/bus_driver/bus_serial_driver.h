@@ -27,7 +27,7 @@ static int rb_serial_write_sync(void *self);
 static int rb_serial_read_sync(void *self);
 static int rb_serial_read_sync(void *self);
 
-bus_serial_driver_t* bus_serial_driver_register(const char* dev_name);
+bus_serial_driver_t* bus_serial_driver_register(const char* dev_name, uint8_t bus_id);
 
 
 #ifdef __cplusplus
