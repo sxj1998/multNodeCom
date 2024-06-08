@@ -11,6 +11,8 @@ char * timeString(void);
 
 #define TI_DEBUG(format, ...) printf("[%s] D %s : <%s> " format "\n", timeString(), TAG, __FUNCTION__, ##__VA_ARGS__)
 
+#define TI_DEBUG_NO_N(format, ...) printf("[%s] D %s : <%s> " format , timeString(), TAG, __FUNCTION__, ##__VA_ARGS__)
+
 void utils_buff_print(uint8_t *buff, uint32_t len);
 
 #ifdef __cplusplus

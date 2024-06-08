@@ -149,7 +149,7 @@ static int serial_write_buff(void *self, uint8_t *data, uint16_t length)
     write_rb_ret = rt_ringbuffer_put_force(write_rb, (uint8_t *)data, (uint32_t)length);
 
     if(write_rb_ret > 0){
-        TI_DEBUG("serial %s write :",dev->dev_name);
+        TI_DEBUG_NO_N("serial %s write :",dev->dev_name);
         utils_buff_print(data,length);
     }
     
@@ -165,7 +165,7 @@ static int serial_read_buff(void *self, uint8_t *data, uint16_t length)
     read_rb_ret = rt_ringbuffer_get(read_rb, (uint8_t *)data, (uint32_t)length);
     
     if(read_rb_ret > 0){
-        TI_DEBUG("serial %s read:",dev->dev_name);
+        TI_DEBUG_NO_N("serial %s read:",dev->dev_name);
         utils_buff_print(data,read_rb_ret);
     }
    
@@ -204,7 +204,7 @@ static int rb_serial_read_sync(void *self)
     read_serial_len = serial_read(dev,recv_buffer, (uint32_t)dev->bus_driver->bus_rx_buffer_size);
     
     if( read_serial_len > 0){
-        serial_read_ret = rt_ringbuffer_put_force(read_rb, (uint8_t *)recv_buffer, (uint32_t)dev->bus_driver->bus_rx_buffer_size);
+        serial_read_ret = rt_ringbuffer_put_force(read_rb, (uint8_t *)recv_buffer, (uint32_t)read_serial_len);
     }
 
     if(serial_read_ret != read_serial_len)
