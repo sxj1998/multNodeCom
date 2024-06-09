@@ -11,7 +11,7 @@
 MODULE_TAG("ROUTE"); 
 
 static int route_data_recv(void* obj, uint8_t* buffer, uint16_t len);
-static int route_data_send(void* obj, uint8_t dst_id, uint8_t cmd, uint8_t* buffer, uint16_t len);
+static int route_data_send(void* self, uint8_t src_id, uint8_t dst_id, uint8_t cmd, uint8_t* buffer, uint16_t len);
 static int route_item_bind(void* self, bus_driver_t **bus);
 
 static const route_options_interface_i route_opt_interface = {
@@ -24,7 +24,7 @@ static const route_options_interface_i route_opt_interface = {
 
 route_item_t* route_item_register(void)
 {
-    route_item_t *item = NULL;
+    route_item_t* item = NULL;
     item = malloc(sizeof(route_item_t));
     item->route_id = 0;
     item->package = malloc(P_NUM*sizeof(route_data_package_t));
@@ -35,26 +35,26 @@ route_item_t* route_item_register(void)
 
 static int route_data_recv(void* self, uint8_t* buffer, uint16_t len)
 {
-    route_item_t *item = (route_item_t *)self;
+    route_item_t* item = (route_item_t *)self;
     bus_driver_t* bus_driver = *(item->bus);
     bus_interface_i* interface = bus_driver->interface;
-    int length = interface->read((void*)bus_driver, (uint8_t*)&item->buffer[P_READ], len);
+    int length = interface->read((void*)item->bus, (uint8_t*)&item->buffer[P_READ], len);
     if(length > 0) {
         return length;
     }
     return 0;
 }
 
-static int route_data_send(void* self, uint8_t dst_id, uint8_t cmd, uint8_t* buffer, uint16_t len)
+static int route_data_send(void* self, uint8_t src_id, uint8_t dst_id, uint8_t cmd, uint8_t* buffer, uint16_t len)
 {
     route_item_t *item = (route_item_t *)self;
     bus_driver_t* bus_driver = *(item->bus);
     bus_interface_i* interface = bus_driver->interface;
 
     uint16_t temp_length = 0;
-    pack_route_data((uint8_t*)&item->buffer[P_WRITE], &temp_length, buffer, len, item->route_id, dst_id, cmd);
+    pack_route_data((uint8_t*)&item->buffer[P_WRITE], &temp_length, buffer, len, src_id, dst_id, cmd);
     int length = interface->write((void*)item->bus, (uint8_t*)&item->buffer[P_WRITE], temp_length);
-    TI_DEBUG("ROUTE TX ID %d: dst_id 0x%02x cmd 0x%02x",item->route_id,dst_id,cmd);
+    TI_DEBUG("ROUTE TX ID %02x: dst_id 0x%02x cmd 0x%02x",src_id,dst_id,cmd);
     TI_DEBUG("ROUTE TX BUS %s id %d",bus_driver->bus_name, bus_driver->bus_id);
     if(length > 0) {
         return length;

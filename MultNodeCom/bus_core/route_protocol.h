@@ -1,9 +1,11 @@
-#ifndef F1F9FA53_6578_40C4_AD13_81C493A7EDB2
-#define F1F9FA53_6578_40C4_AD13_81C493A7EDB2
 #ifndef __ROUTE_PROTOCOL_H__
 #define __ROUTE_PROTOCOL_H__
 
 #include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
 **  包头    源ID    目的ID    命令    字节数    [数据]    CRC
@@ -34,8 +36,9 @@ int8_t unpack_route_data(uint8_t* unpacked_buffer, uint16_t* unpacked_len, uint8
 
 int8_t data_unpacked(uint8_t* unpacked_buffer, uint16_t* unpacked_len, uint8_t* data, uint16_t len, uint8_t* src_id, uint8_t* dst_id, uint8_t* cmd);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __ROUTE_PROTOCOL_H__ */
 
-
-#endif /* F1F9FA53_6578_40C4_AD13_81C493A7EDB2 */

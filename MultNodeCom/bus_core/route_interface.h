@@ -4,6 +4,10 @@
 #include "route_protocol.h"
 #include "bus_driver.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
     P_READ = 0,
     P_WRITE,
@@ -21,7 +25,7 @@ typedef struct {
 
 typedef struct{
     int (*recv)(void* self, uint8_t* buffer, uint16_t len);
-    int (*send)(void* self, uint8_t dst_id, uint8_t cmd, uint8_t* buffer, uint16_t len);
+    int (*send)(void* self, uint8_t src_id, uint8_t dst_id, uint8_t cmd, uint8_t* buffer, uint16_t len);
     int (*bind)(void* self, bus_driver_t **bus);
 }route_options_interface_i;
 
@@ -34,5 +38,9 @@ typedef struct {
 }route_item_t;
 
 route_item_t* route_item_register(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __ROUTE_INTERFACE_H__ */

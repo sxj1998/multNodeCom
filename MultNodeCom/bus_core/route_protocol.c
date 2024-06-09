@@ -2,6 +2,7 @@
 #include "crc16.h"
 
 #include <string.h>
+#include <stdio.h>
 
 int8_t pack_route_data(uint8_t* packed_buffer, uint16_t* packed_len, uint8_t* data, uint16_t len, uint8_t src_id, uint8_t dst_id, uint8_t cmd)
 {
@@ -47,7 +48,7 @@ int8_t data_unpacked(uint8_t* unpacked_buffer, uint16_t* unpacked_len, uint8_t* 
 
     if(crc16(data,HEAD_TO_DATA_SIZE + *unpacked_len) != crc16_res)
         return -2;
-
+\
     memcpy(unpacked_buffer, data + HEAD_TO_DATA_SIZE, *unpacked_len);
 
     return 0;
