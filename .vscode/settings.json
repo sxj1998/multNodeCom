@@ -16,6 +16,7 @@
         "ringbuffer.h": "c",
         "communicateinterface.h": "c",
         "route_interface.h": "c",
-        "bus_type.h": "c"
+        "bus_type.h": "c",
+        "bus_serial_driver.h": "c"
     }
 }

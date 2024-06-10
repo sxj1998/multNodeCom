@@ -10,6 +10,8 @@ extern "C" {
 #define BUS_NUM_MAX     5    
 #define ROUTE_NUM_MAX   5
 
+typedef int (*route_handle_callback)(uint8_t*, uint16_t);
+
 typedef enum{
     ROUTE_BUS = 0,
     ROUTE_BOARD = 1
@@ -38,12 +40,14 @@ typedef struct {
     uint8_t route_table[ROUTE_NUM_MAX][2];
     uint8_t route_index;
     uint8_t route_ctrl_id;
+    route_handle_callback route_data_handle;
 }route_ctrl_t;
 
 void routeRecvDataProc(route_ctrl_t* self);
 route_ctrl_t* route_ctrl_init(uint8_t board_id);
 int route_ctrl_add_node(route_ctrl_t* route_ctrl, route_item_t* route_item);
 int route_table_add(route_ctrl_t* route_ctrl, BUS_ID_TYPE bus_id, BOARD_ID_TYPE board_id);
+void register_route_callback(route_ctrl_t* route_ctrl, route_handle_callback cb);
 
 #ifdef __cplusplus
 }

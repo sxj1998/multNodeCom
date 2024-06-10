@@ -11,6 +11,13 @@ MODULE_TAG("ROUTE_HANDLE");
 
 static int8_t is_route_table_has_dst(uint8_t dst, uint8_t (*table)[2]);
 
+void register_route_callback(route_ctrl_t* route_ctrl, route_handle_callback cb)
+{
+    utils_assert(route_ctrl);
+    utils_assert(cb);
+    route_ctrl->route_data_handle = cb;
+}
+
 route_ctrl_t* route_ctrl_init(uint8_t board_id)
 {
     route_ctrl_t* route_ctrl = malloc(sizeof(route_ctrl_t));
@@ -50,15 +57,20 @@ void routeRecvDataProc(route_ctrl_t* route_ctrl)
         int8_t ret = unpack_route_data(route->package[P_READ].buffer, &route->package[P_READ].length, (uint8_t*)&route->buffer[P_READ], len, \
                                         &route->package[P_READ].src_id, &route->package[P_READ].dst_id, &route->package[P_READ].cmd);
         if(ret == 0){
-            TI_DEBUG("ROUTE RX %d: src_id 0x%02x dst_id 0x%02x cmd 0x%02x",route->package[P_READ].length, route->package[P_READ].src_id ,route->package[P_READ].dst_id , route->package[P_READ].cmd);
-            TI_DEBUG("ROUTE BUS : %s id : %d",bus_driver->bus_name, bus_driver->bus_id);
+            TI_DEBUG("ROUTE RX 0x%d: src_id 0x%02x dst_id 0x%02x cmd 0x%02x",route->package[P_READ].length, route->package[P_READ].src_id ,route->package[P_READ].dst_id , route->package[P_READ].cmd);
+            TI_DEBUG("ROUTE BUS : %s bus id : 0x%02x, board_id 0x%02x",bus_driver->bus_name, bus_driver->bus_id, route_ctrl->route_ctrl_id);
+            /*判断路由表中是否存在目标id，进行路由*/
             int8_t dst_index = is_route_table_has_dst(route->package[P_READ].dst_id, route_ctrl->route_table);
-
             if(dst_index >= 0){
                 route_item_t* route_dst = route_ctrl->route_item[dst_index];
                 utils_assert(route_dst);
                 route_options_interface_i* route_dst_opt = route_dst->interface;
                 route_dst_opt->send(route_dst, route_ctrl->route_ctrl_id, route->package[P_READ].dst_id, route->package[P_READ].cmd ,route->package[P_READ].buffer, route->package[P_READ].length);
+            }
+
+            if(route->package[P_READ].dst_id == route_ctrl->route_ctrl_id){
+
+                route_ctrl->route_data_handle(route->package[P_READ].buffer, route->package[P_READ].length);
             }
             // route_opt->send(route, route_ctrl->route_ctrl_id, route_ctrl->route_table[dst_index], route->package[P_READ].cmd ,route->package[P_READ].buffer, route->package[P_READ].length);
             // utils_buff_print(route->package[P_READ].buffer, route->package[P_READ].length);

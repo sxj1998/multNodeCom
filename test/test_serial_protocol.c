@@ -79,6 +79,16 @@ void* thread_recv1(void* arg)
 
 uint8_t buffer[10] = {1,2,3,4,5,6,7,8,9,10};
 
+int test1(uint8_t *buffer, uint16_t len)
+{
+    printf("test1\r\n");
+}
+
+int test2(uint8_t *buffer, uint16_t len)
+{
+    printf("test2\r\n");
+}
+
 int main(int argc, char **argv)
 {
     bus_serial_driver_t* serial = bus_serial_driver_register("/dev/ttyUSB4", BUS_ID_USB0);
@@ -101,7 +111,8 @@ int main(int argc, char **argv)
 
     route_table_add(route_ctrl, BUS_ID_USB0, BOARD_ID_USB1);
     route_table_add(route_ctrl1, BUS_ID_USB1, BOARD_ID_USB0);
-    
+    register_route_callback(route_ctrl, test1);
+    register_route_callback(route_ctrl1, test2);
 
     pthread_create(&thread_recv_sync_id,NULL,thread_recv_sync, serial);
     pthread_detach(thread_recv_sync_id);
@@ -121,7 +132,7 @@ int main(int argc, char **argv)
     pthread_create(&thread_recv_id1,NULL, thread_recv1, route_ctrl1);
     pthread_detach(thread_recv_id1);
 
-    route_opt->send((void*)route_item,BOARD_ID_USB0 , BUS_ID_USB1, 0x05, buffer, 10);
+    route_opt->send((void*)route_item,BOARD_ID_USB0 , BOARD_ID_USB1, 0x05, buffer, 10);
 
     // sleep(1);
 
