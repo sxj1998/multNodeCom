@@ -16,14 +16,22 @@
 
 MODULE_TAG("SERICL"); 
 
+static int init_x(void *self);
+static int open_x(void *self);
+static int close_x(void *self);
+static int write_buff_x(void *self, uint8_t *buffer, uint16_t length);
+static int read_buff_x(void *self, uint8_t *buffer, uint16_t length);
+static int rb_read_sync_x(void *self);
+static int rb_write_sync_x(void *self);
+
 static const bus_interface_i bus_serial_interface = {
-    .init = serial_init,
-    .open = serial_open,
-    .close = serial_close,
-    .write = serial_write_buff,
-    .read = serial_read_buff,
-    .sync_rx = rb_serial_read_sync,
-    .sync_tx = rb_serial_write_sync
+    .init = init_x,
+    .open = open_x,
+    .close = close_x,
+    .write = write_buff_x,
+    .read = read_buff_x,
+    .sync_rx = rb_read_sync_x,
+    .sync_tx = rb_write_sync_x
 };
 
 /* 115200, 8, N, 1 */
@@ -81,7 +89,7 @@ static int uart_setup(int fd)
     return 0;
 }
 
-static int serial_init(void *self)
+static int init_x(void *self)
 {
     bus_serial_driver_t* dev = self;
     int* fd = &(dev->bus_device.fd);
@@ -109,13 +117,13 @@ static int serial_init(void *self)
     return ret;
 }
 
-static int serial_open(void *self)
+static int open_x(void *self)
 {
 
     return 0;
 }
 
-static int serial_close(void *self)
+static int close_x(void *self)
 {
     return 0;
 }
@@ -140,10 +148,10 @@ static int serial_read(void *self, uint8_t *data, uint16_t length)
     return ret;
 }
 
-static int serial_write_buff(void *self, uint8_t *data, uint16_t length)
+static int write_buff_x(void *self, uint8_t *data, uint16_t length)
 {
     bus_serial_driver_t* dev = self;
-    struct rt_ringbuffer* write_rb = dev->bus_driver->serial_write_rb;
+    struct rt_ringbuffer* write_rb = dev->bus_driver->write_rb;
     int write_rb_ret = 0;
 
     write_rb_ret = rt_ringbuffer_put_force(write_rb, (uint8_t *)data, (uint32_t)length);
@@ -156,10 +164,10 @@ static int serial_write_buff(void *self, uint8_t *data, uint16_t length)
     return write_rb_ret;
 }
 
-static int serial_read_buff(void *self, uint8_t *data, uint16_t length)
+static int read_buff_x(void *self, uint8_t *data, uint16_t length)
 {
     bus_serial_driver_t* dev = self;
-    struct rt_ringbuffer* read_rb = dev->bus_driver->serial_read_rb;
+    struct rt_ringbuffer* read_rb = dev->bus_driver->read_rb;
     int read_rb_ret = 0;
 
     read_rb_ret = rt_ringbuffer_get(read_rb, (uint8_t *)data, (uint32_t)length);
@@ -173,10 +181,10 @@ static int serial_read_buff(void *self, uint8_t *data, uint16_t length)
 }
 
 
-static int rb_serial_write_sync(void *self)
+static int rb_write_sync_x(void *self)
 {
     bus_serial_driver_t* dev = self;
-    struct rt_ringbuffer* write_rb = dev->bus_driver->serial_write_rb;
+    struct rt_ringbuffer* write_rb = dev->bus_driver->write_rb;
     int write_serial_len = 0, write_rb_ret = 0;
     uint8_t recv_buffer[dev->bus_driver->bus_tx_buffer_size];
     memset(recv_buffer, 0, sizeof(recv_buffer));
@@ -193,10 +201,10 @@ static int rb_serial_write_sync(void *self)
     return write_rb_ret;
 }
 
-static int rb_serial_read_sync(void *self)
+static int rb_read_sync_x(void *self)
 {
     bus_serial_driver_t* dev = self;
-    struct rt_ringbuffer* read_rb = dev->bus_driver->serial_read_rb;
+    struct rt_ringbuffer* read_rb = dev->bus_driver->read_rb;
     int read_serial_len = 0, serial_read_ret = 0;
     uint8_t recv_buffer[dev->bus_driver->bus_rx_buffer_size];
     memset(recv_buffer, 0, sizeof(recv_buffer));

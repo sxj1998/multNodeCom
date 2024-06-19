@@ -18,8 +18,8 @@ typedef enum {
 typedef struct 
 {
     bus_interface_i* interface;
-    struct rt_ringbuffer* serial_write_rb;
-    struct rt_ringbuffer* serial_read_rb;
+    struct rt_ringbuffer* write_rb;
+    struct rt_ringbuffer* read_rb;
     char bus_name[BUS_NAME_NUM];
     BUS_TYPE bus_type;
     uint8_t bus_id;

@@ -28,14 +28,14 @@ int8_t bus_driver_register(bus_driver_t **bus_driver, const bus_interface_i* int
     bus->bus_rx_buffer_size = bus_rx_buffer_size;
     bus->bus_tx_buffer_size = bus_tx_buffer_size;
 
-    bus->serial_write_rb = rt_ringbuffer_create(bus->bus_tx_buffer_size);
-    if(bus->serial_write_rb == NULL){
+    bus->write_rb = rt_ringbuffer_create(bus->bus_tx_buffer_size);
+    if(bus->write_rb == NULL){
         TI_DEBUG("%s malloc ring buffer failed ! ", bus_name);
         goto free_bus_driver;
     }
 
-    bus->serial_read_rb = rt_ringbuffer_create(bus->bus_rx_buffer_size);
-    if(bus->serial_read_rb == NULL){
+    bus->read_rb = rt_ringbuffer_create(bus->bus_rx_buffer_size);
+    if(bus->read_rb == NULL){
         TI_DEBUG("%s malloc ring buffer failed ! ", bus_name);
         goto free_ringbuffer_tx;
     }
@@ -46,10 +46,10 @@ int8_t bus_driver_register(bus_driver_t **bus_driver, const bus_interface_i* int
     return 0;
 
 free_ringbuffer_rx:
-    rt_ringbuffer_destroy(bus->serial_read_rb);
+    rt_ringbuffer_destroy(bus->read_rb);
 
 free_ringbuffer_tx:
-    rt_ringbuffer_destroy(bus->serial_write_rb);
+    rt_ringbuffer_destroy(bus->write_rb);
 
 free_bus_driver:
     free(bus);
@@ -59,6 +59,7 @@ free_bus_driver:
 
 int bus_init(bus_driver_t** bus)
 {
+  
     bus_interface_i* interface = (bus_interface_i*)(*bus)->interface;
     return interface->init(bus);
 }

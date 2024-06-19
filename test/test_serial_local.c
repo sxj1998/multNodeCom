@@ -46,7 +46,7 @@ uint8_t buffer[10] = {1,2,3,4,5,6,7,8,9,10};
 
 int main(int argc, char **argv)
 {
-    bus_serial_driver_t* serial = bus_serial_driver_register("/dev/ttyUSB3", 1);
+    bus_serial_driver_t* serial = bus_serial_driver_register("/dev/ttyUSB0", 1);
     bus_init((bus_driver_t**)serial);
 
     pthread_create(&thread_recv_sync_id,NULL,thread_recv_sync, serial);

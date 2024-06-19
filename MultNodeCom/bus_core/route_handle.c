@@ -95,4 +95,3 @@ int route_table_add(route_ctrl_t* route_ctrl, BUS_ID_TYPE bus_id, BOARD_ID_TYPE 
     route_ctrl->route_index++;
 }
 
-
