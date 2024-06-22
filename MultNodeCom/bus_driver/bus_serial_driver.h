@@ -1,3 +1,13 @@
+/**
+ * @file bus_serial_driver.h
+ * @author shexingju (1970237065@qq.com)
+ * @brief 
+ * @version 0.1
+ * @date 2024-06-23
+ * 
+ * @copyright Copyright (c) 2024
+ * 
+ */
 #ifndef __BUS_SERIAL_DRIVER_H__
 #define __BUS_SERIAL_DRIVER_H__
 
