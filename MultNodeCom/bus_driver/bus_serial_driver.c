@@ -29,22 +29,27 @@ MODULE_TAG("SERICL");
 static int init_x(void *self);
 static int open_x(void *self);
 static int close_x(void *self);
-static int write_buff_x(void *self, uint8_t *buffer, uint16_t length);
-static int read_buff_x(void *self, uint8_t *buffer, uint16_t length);
 static int rb_read_sync_x(void *self);
 static int rb_write_sync_x(void *self);
+static int write_buff_x(void *self, uint8_t *buffer, uint16_t length);
+static int read_buff_x(void *self, uint8_t *buffer, uint16_t length);
 
 static const bus_interface_i bus_serial_interface = {
     .init = init_x,
     .open = open_x,
     .close = close_x,
-    .write = write_buff_x,
-    .read = read_buff_x,
     .sync_rx = rb_read_sync_x,
-    .sync_tx = rb_write_sync_x
+    .sync_tx = rb_write_sync_x,
+    .write = write_buff_x,
+    .read = read_buff_x
 };
 
-/* 115200, 8, N, 1 */
+/**
+ * @brief uart_setup
+ * 
+ * @param fd 
+ * @return int 
+ */
 static int uart_setup(int fd)
 {
     struct termios options;
@@ -101,7 +106,7 @@ static int uart_setup(int fd)
 
 static int init_x(void *self)
 {
-    bus_serial_driver_t* dev = self;
+    bus_serial_driver_t* dev = (bus_serial_driver_t*)self;
     int* fd = &(dev->bus_device.fd);
     int ret = 0;
 
@@ -141,7 +146,7 @@ static int close_x(void *self)
 static int serial_write(void *self, uint8_t *data, uint16_t length)
 {
     int ret = 0;
-    bus_serial_driver_t* dev = self;
+    bus_serial_driver_t* dev = (bus_serial_driver_t*)self;
     int fd = dev->bus_device.fd;
     ret = write(fd, data, length);
 
@@ -151,7 +156,7 @@ static int serial_write(void *self, uint8_t *data, uint16_t length)
 static int serial_read(void *self, uint8_t *data, uint16_t length)
 {
     int ret = 0;
-    bus_serial_driver_t* dev = self;
+    bus_serial_driver_t* dev = (bus_serial_driver_t*)self;
     int fd = dev->bus_device.fd;
     ret = read(fd, data, length);
 
@@ -160,7 +165,7 @@ static int serial_read(void *self, uint8_t *data, uint16_t length)
 
 static int write_buff_x(void *self, uint8_t *data, uint16_t length)
 {
-    bus_serial_driver_t* dev = self;
+    bus_serial_driver_t* dev = (bus_serial_driver_t*)self;
     struct rt_ringbuffer* write_rb = dev->bus_driver->write_rb;
     int write_rb_ret = 0;
 
@@ -176,7 +181,7 @@ static int write_buff_x(void *self, uint8_t *data, uint16_t length)
 
 static int read_buff_x(void *self, uint8_t *data, uint16_t length)
 {
-    bus_serial_driver_t* dev = self;
+    bus_serial_driver_t* dev = (bus_serial_driver_t*)self;
     struct rt_ringbuffer* read_rb = dev->bus_driver->read_rb;
     int read_rb_ret = 0;
 
@@ -193,7 +198,7 @@ static int read_buff_x(void *self, uint8_t *data, uint16_t length)
 
 static int rb_write_sync_x(void *self)
 {
-    bus_serial_driver_t* dev = self;
+    bus_serial_driver_t* dev = (bus_serial_driver_t*)self;
     struct rt_ringbuffer* write_rb = dev->bus_driver->write_rb;
     int write_serial_len = 0, write_rb_ret = 0;
     uint8_t recv_buffer[dev->bus_driver->bus_tx_buffer_size];
@@ -213,7 +218,7 @@ static int rb_write_sync_x(void *self)
 
 static int rb_read_sync_x(void *self)
 {
-    bus_serial_driver_t* dev = self;
+    bus_serial_driver_t* dev = (bus_serial_driver_t*)self;
     struct rt_ringbuffer* read_rb = dev->bus_driver->read_rb;
     int read_serial_len = 0, serial_read_ret = 0;
     uint8_t recv_buffer[dev->bus_driver->bus_rx_buffer_size];
@@ -235,7 +240,7 @@ bus_serial_driver_t* bus_serial_driver_register(const char* dev_name, uint8_t bu
 {
     
     bus_serial_driver_t* serial_driver = NULL;
-    serial_driver = malloc(sizeof(bus_serial_driver_t));
+    serial_driver = (bus_serial_driver_t*)malloc(sizeof(bus_serial_driver_t));
 
     strncpy(serial_driver->dev_name, dev_name, sizeof(serial_driver->dev_name) - 1);
     serial_driver->dev_name[sizeof(serial_driver->dev_name) - 1] = '\0'; // 确保字符串以空字符结尾
