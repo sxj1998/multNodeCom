@@ -8,6 +8,7 @@
  * @copyright Copyright (c) 2024
  * 
  */
+#include "serial.h"
 #include "bus_serial_driver.h"
 #include "bus_driver.h"
 #include "ringbuffer.h"
@@ -43,66 +44,6 @@ static const bus_interface_i bus_serial_interface = {
     .write = write_buff_x,
     .read = read_buff_x
 };
-
-/**
- * @brief uart_setup
- * 
- * @param fd 
- * @return int 
- */
-static int uart_setup(int fd)
-{
-    struct termios options;
-
-    // 获取原有串口配置
-    if  (tcgetattr(fd, &options) < 0) {
-        return -1;
-    }
-
-    // 修改控制模式，保证程序不会占用串口
-    options.c_cflag  |=  CLOCAL;
-
-    // 修改控制模式，能够从串口读取数据
-    options.c_cflag  |=  CREAD;
-
-    // 不使用流控制
-    options.c_cflag &= ~CRTSCTS;
-
-    // 设置数据位
-    options.c_cflag &= ~CSIZE;
-    options.c_cflag |= CS8;
-
-    // 设置奇偶校验位
-    options.c_cflag &= ~PARENB;
-    options.c_iflag &= ~INPCK; 
-
-    // 设置停止位
-    options.c_cflag &= ~CSTOPB;
-
-    // 设置最少字符和等待时间
-    options.c_cc[VMIN] = 1;     // 读数据的最小字节数
-    options.c_cc[VTIME]  = 0;   //等待第1个数据，单位是10s
-    
-    // 修改输出模式，原始数据输出
-    options.c_cflag |= CLOCAL | CREAD;
-    options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
-    options.c_oflag &= ~OPOST;
-    options.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-
-    // 设置波特率
-    cfsetispeed(&options, B115200); 
-    cfsetospeed(&options, B115200);
-
-    // 清空终端未完成的数据
-    tcflush(fd, TCIFLUSH);
-
-    // 设置新属性
-    if(tcsetattr(fd, TCSANOW, &options) < 0) {
-        return -1;
-    }
-
-    return 0;
-}
 
 static int init_x(void *self)
 {
@@ -141,26 +82,6 @@ static int open_x(void *self)
 static int close_x(void *self)
 {
     return 0;
-}
-
-static int serial_write(void *self, uint8_t *data, uint16_t length)
-{
-    int ret = 0;
-    bus_serial_driver_t* dev = (bus_serial_driver_t*)self;
-    int fd = dev->bus_device.fd;
-    ret = write(fd, data, length);
-
-    return ret;
-}
-
-static int serial_read(void *self, uint8_t *data, uint16_t length)
-{
-    int ret = 0;
-    bus_serial_driver_t* dev = (bus_serial_driver_t*)self;
-    int fd = dev->bus_device.fd;
-    ret = read(fd, data, length);
-
-    return ret;
 }
 
 static int write_buff_x(void *self, uint8_t *data, uint16_t length)
@@ -207,7 +128,7 @@ static int rb_write_sync_x(void *self)
     write_serial_len = rt_ringbuffer_get(write_rb, (uint8_t *)recv_buffer, (uint32_t)dev->bus_driver->bus_tx_buffer_size);
 
     if(write_serial_len > 0){
-        write_rb_ret = serial_write(dev, (uint8_t *)recv_buffer, write_serial_len);
+        write_rb_ret = serial_write(dev->bus_device.fd, (uint8_t *)recv_buffer, write_serial_len);
     }
 
     if(write_rb_ret != write_serial_len)
@@ -224,7 +145,7 @@ static int rb_read_sync_x(void *self)
     uint8_t recv_buffer[dev->bus_driver->bus_rx_buffer_size];
     memset(recv_buffer, 0, sizeof(recv_buffer));
 
-    read_serial_len = serial_read(dev,recv_buffer, (uint32_t)dev->bus_driver->bus_rx_buffer_size);
+    read_serial_len = serial_read(dev->bus_device.fd,recv_buffer, (uint32_t)dev->bus_driver->bus_rx_buffer_size);
     
     if( read_serial_len > 0){
         serial_read_ret = rt_ringbuffer_put_force(read_rb, (uint8_t *)recv_buffer, (uint32_t)read_serial_len);

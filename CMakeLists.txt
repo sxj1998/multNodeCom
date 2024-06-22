@@ -27,8 +27,8 @@ target_include_directories(MultNodeComProj PUBLIC
     "${PROJECT_SOURCE_DIR}/MultNodeCom/3rd_part"
     "${PROJECT_SOURCE_DIR}/MultNodeCom/bus_device"
     "${PROJECT_SOURCE_DIR}/MultNodeCom/bus_driver"
+    "${PROJECT_SOURCE_DIR}/MultNodeCom/bus_hardware"
     "${PROJECT_SOURCE_DIR}/MultNodeCom/bus_core"
-    # "${PROJECT_SOURCE_DIR}/MultNodeCom/routeCore"
     "${PROJECT_SOURCE_DIR}/MultNodeCom/utils"
 )
 

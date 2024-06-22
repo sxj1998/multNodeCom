@@ -3,6 +3,7 @@ file(GLOB MULT_NODE_COM_SOURCES "*.c")
 file(GLOB THREAD_PART "3rd_part/*.c")
 file(GLOB BUS_DEVICE "bus_device/*.c")
 file(GLOB BUS_DRIVER "bus_driver/*.c")
+file(GLOB BUS_HARDWARE "bus_hardware/*.c")
 file(GLOB BUS_CORE "bus_core/*.c")
 file(GLOB UTILS "utils/*.c")
 
@@ -13,6 +14,7 @@ set(INCLUDE_DIRS
     "${CMAKE_CURRENT_SOURCE_DIR}/3rd_part"
     "${CMAKE_CURRENT_SOURCE_DIR}/bus_device"
     "${CMAKE_CURRENT_SOURCE_DIR}/bus_driver"
+    "${CMAKE_CURRENT_SOURCE_DIR}/bus_hardware"
     "${CMAKE_CURRENT_SOURCE_DIR}/bus_core"
     "${CMAKE_CURRENT_SOURCE_DIR}/utils"
 )
@@ -22,6 +24,7 @@ add_library(MultNodeCom ${MULT_NODE_COM_SOURCES}
                         ${THREAD_PART}
                         ${BUS_DEVICE}
                         ${BUS_DRIVER}
+                        ${BUS_HARDWARE}
                         ${BUS_CORE}
                         ${UTILS} 
 )
