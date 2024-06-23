@@ -19,6 +19,7 @@
         "bus_type.h": "c",
         "bus_serial_driver.h": "c",
         "bus_serial_device.h": "c",
-        "algorithm": "c"
+        "algorithm": "c",
+        "testharness.h": "c"
     }
 }

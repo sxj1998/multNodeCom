@@ -1,0 +1,45 @@
+#include "CppUTest/TestHarness.h"
+
+TEST_GROUP(middleware){
+    void setup(){
+
+    }
+
+    void teardown(){
+        // Un-init stuff
+    }};
+
+TEST(middleware, checksum_negation)
+{
+   uint8_t InputData[5]{0xaa, 0x56, 0xc5, 0x34, 0x78};
+   LONGS_EQUAL(0x8e, 0x8e);
+   CHECK_EQUAL(4, 4);
+   LONGS_EQUAL(0x8e, 0x8e);
+   LONGS_EQUAL(0x8e, 0x8e);
+   LONGS_EQUAL(0x8e, 0x1);
+   LONGS_EQUAL(0x8e, 0x8e);
+}
+
+TEST(middleware, test1)
+{
+   uint8_t InputData[5]{0xaa, 0x56, 0xc5, 0x34, 0x78};
+   LONGS_EQUAL(0x8e, 0x8e);
+   CHECK_EQUAL(4, 4);
+   LONGS_EQUAL(0x8e, 0x8e);
+   LONGS_EQUAL(0x8e, 0x8e);
+   LONGS_EQUAL(0x8e, 0x1);
+   LONGS_EQUAL(0x8e, 0x8e);
+}
+
+TEST(middleware, test2)
+{
+   uint8_t InputData[5]{0xaa, 0x56, 0xc5, 0x34, 0x78};
+   LONGS_EQUAL(0x8e, 0x8e);
+   CHECK_EQUAL(4, 4);
+   LONGS_EQUAL(0x8e, 0x8e);
+   LONGS_EQUAL(0x8e, 0x8e);
+   LONGS_EQUAL(0x8e, 0x1);
+   LONGS_EQUAL(0x8e, 0x8e);
+}
+
+
