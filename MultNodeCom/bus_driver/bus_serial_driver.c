@@ -81,6 +81,10 @@ static int open_x(void *self)
 
 static int close_x(void *self)
 {
+    bus_serial_driver_t* dev = (bus_serial_driver_t*)self;
+    int* fd = &(dev->bus_device.fd);
+    usart_deinit(*fd);
+    free(dev);
     return 0;
 }
 

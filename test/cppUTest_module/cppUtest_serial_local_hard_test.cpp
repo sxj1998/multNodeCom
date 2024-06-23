@@ -14,38 +14,39 @@ extern "C"{
 }
 
 int serial_fd = 0;
-TEST_GROUP(test_serial_local_hard){
+TEST_GROUP(cppUtest_serial_local_hard_test){
     void setup(){
+         serial_fd = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY | O_NDELAY);
+         CHECK_TRUE(serial_fd > 0);
+         fcntl(serial_fd, F_SETFL, 0);
+         int ret = uart_setup(serial_fd);
+         CHECK_EQUAL(ret, 0);
     }
 
     void teardown(){
-    }};
+         int ret = usart_deinit(serial_fd);
+         CHECK_EQUAL(ret, 0);
+    }
+};
 
-TEST(test_serial_local_hard, check_usart_init)
+#define TEST_BYTE_NUM  16
+TEST(cppUtest_serial_local_hard_test, check_usart_send_recv)
 {
-   serial_fd = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY | O_NDELAY);
-   CHECK_TRUE(serial_fd > 0);
+   uint8_t test_buffer_send[TEST_BYTE_NUM] = { 0 };
+   uint8_t test_buffer_recv[TEST_BYTE_NUM] = { 0 };
+   for(int i=0; i<TEST_BYTE_NUM; i++)
+      test_buffer_send[i] = i;
+   
+   int ret = serial_write(serial_fd,test_buffer_send,TEST_BYTE_NUM);
+   CHECK_EQUAL(ret, TEST_BYTE_NUM);
 
-   if (serial_fd < 0) {
-      printf("Serial fd %d\r\n",serial_fd);
-   } else {
-      fcntl(serial_fd, F_SETFL, 0);
-   }
+   ret = serial_read(serial_fd,test_buffer_recv,TEST_BYTE_NUM);
+   CHECK_EQUAL(ret, TEST_BYTE_NUM);
 
-   int ret = uart_setup(serial_fd);
-   CHECK_EQUAL(ret, 0);
-   ret = usart_deinit(serial_fd);
-   CHECK_EQUAL(ret, 0);
+   for(int i=0; i<TEST_BYTE_NUM; i++)
+      CHECK_EQUAL(test_buffer_send[i], test_buffer_recv[i]);
 }
 
-TEST(test_serial_local_hard, check_usart_send_recv)
-{
 
-}
-
-TEST(test_serial_local_hard, test2)
-{
-
-}
 
 

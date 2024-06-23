@@ -21,6 +21,7 @@
         "bus_serial_device.h": "c",
         "algorithm": "c",
         "testharness.h": "c",
-        "fstream": "c"
+        "fstream": "c",
+        "termios.h": "c"
     }
 }
