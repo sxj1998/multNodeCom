@@ -84,6 +84,41 @@ int uart_setup(int fd)
     return 0;
 }
 
+int usart_deinit(int fd) {
+    struct termios options;
+
+    // 获取当前串口配置
+    if (tcgetattr(fd, &options) < 0) {
+        perror("tcgetattr failed");
+        return -1;
+    }
+
+    cfmakeraw(&options);
+
+    cfsetispeed(&options, B9600);
+    cfsetospeed(&options, B9600);
+
+    // 应用配置
+    if (tcsetattr(fd, TCSANOW, &options) < 0) {
+        perror("tcsetattr failed");
+        return -1;
+    }
+
+    // 清空输入和输出缓冲区
+    if (tcflush(fd, TCIOFLUSH) < 0) {
+        perror("tcflush failed");
+        return -1;
+    }
+
+    // 关闭串口
+    if (close(fd) < 0) {
+        perror("close failed");
+        return -1;
+    }
+
+    return 0;
+}
+
 int serial_write(int fd, uint8_t *data, uint16_t length)
 {
     int ret = write(fd, data, length);

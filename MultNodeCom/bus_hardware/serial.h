@@ -20,6 +20,8 @@ extern "C" {
 
 int uart_setup(int fd);
 
+int usart_deinit(int fd);
+
 int serial_write(int fd, uint8_t *data, uint16_t length);
 
 int serial_read(int fd, uint8_t *data, uint16_t length);

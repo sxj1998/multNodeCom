@@ -1,45 +1,51 @@
 #include "CppUTest/TestHarness.h"
 
-TEST_GROUP(middleware){
-    void setup(){
+#include <assert.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdint.h>
+#include <termios.h>
+#include <string.h>
 
+extern "C"{
+#include "serial.h"
+}
+
+int serial_fd = 0;
+TEST_GROUP(test_serial_local_hard){
+    void setup(){
     }
 
     void teardown(){
-        // Un-init stuff
     }};
 
-TEST(middleware, checksum_negation)
+TEST(test_serial_local_hard, check_usart_init)
 {
-   uint8_t InputData[5]{0xaa, 0x56, 0xc5, 0x34, 0x78};
-   LONGS_EQUAL(0x8e, 0x8e);
-   CHECK_EQUAL(4, 4);
-   LONGS_EQUAL(0x8e, 0x8e);
-   LONGS_EQUAL(0x8e, 0x8e);
-   LONGS_EQUAL(0x8e, 0x1);
-   LONGS_EQUAL(0x8e, 0x8e);
+   serial_fd = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY | O_NDELAY);
+   CHECK_TRUE(serial_fd > 0);
+
+   if (serial_fd < 0) {
+      printf("Serial fd %d\r\n",serial_fd);
+   } else {
+      fcntl(serial_fd, F_SETFL, 0);
+   }
+
+   int ret = uart_setup(serial_fd);
+   CHECK_EQUAL(ret, 0);
+   ret = usart_deinit(serial_fd);
+   CHECK_EQUAL(ret, 0);
 }
 
-TEST(middleware, test1)
+TEST(test_serial_local_hard, check_usart_send_recv)
 {
-   uint8_t InputData[5]{0xaa, 0x56, 0xc5, 0x34, 0x78};
-   LONGS_EQUAL(0x8e, 0x8e);
-   CHECK_EQUAL(4, 4);
-   LONGS_EQUAL(0x8e, 0x8e);
-   LONGS_EQUAL(0x8e, 0x8e);
-   LONGS_EQUAL(0x8e, 0x1);
-   LONGS_EQUAL(0x8e, 0x8e);
+
 }
 
-TEST(middleware, test2)
+TEST(test_serial_local_hard, test2)
 {
-   uint8_t InputData[5]{0xaa, 0x56, 0xc5, 0x34, 0x78};
-   LONGS_EQUAL(0x8e, 0x8e);
-   CHECK_EQUAL(4, 4);
-   LONGS_EQUAL(0x8e, 0x8e);
-   LONGS_EQUAL(0x8e, 0x8e);
-   LONGS_EQUAL(0x8e, 0x1);
-   LONGS_EQUAL(0x8e, 0x8e);
+
 }
 
 
