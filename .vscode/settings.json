@@ -22,6 +22,7 @@
         "algorithm": "c",
         "testharness.h": "c",
         "fstream": "c",
-        "termios.h": "c"
+        "termios.h": "c",
+        "functional": "c"
     }
 }

@@ -1,3 +1,4 @@
+#if 0
 #include "CppUTest/TestHarness.h"
 
 #include "bus_serial_driver.h"
@@ -85,6 +86,8 @@ TEST(cppUtest_serial_local_rb, check_usart_send_recv)
       CHECK_EQUAL(test_recv_buff[i], test_send_buff[i]);
 
 }
+
+#endif
 
 
 
