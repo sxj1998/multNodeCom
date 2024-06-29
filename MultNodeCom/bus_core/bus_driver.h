@@ -22,7 +22,8 @@ typedef enum {
     SERIAL = 0,
     IIC,
     SPI,
-    NET
+    NET,
+    SOCKET
 }BUS_TYPE;
 
 typedef struct 

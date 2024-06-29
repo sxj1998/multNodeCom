@@ -22,7 +22,7 @@ extern "C" {
 
 typedef struct{
     bus_driver_t* bus_driver;
-    bus_device_t bus_device;
+    bus_serial_device_t bus_device;
     char dev_name[SERIAL_NAME_NUM];
 }bus_serial_driver_t;
 

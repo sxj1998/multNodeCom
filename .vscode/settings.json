@@ -23,6 +23,9 @@
         "testharness.h": "c",
         "fstream": "c",
         "termios.h": "c",
-        "functional": "c"
+        "functional": "c",
+        "buffer": "c",
+        "socket.h": "c",
+        "stdlib.h": "c"
     }
 }

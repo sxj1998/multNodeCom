@@ -9,7 +9,7 @@ extern "C" {
 
 typedef struct{
     int fd;
-}bus_device_t;
+}bus_serial_device_t;
 
 #ifdef __cplusplus
 }
