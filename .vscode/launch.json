@@ -8,7 +8,7 @@
             "name": "(gdb) 启动",
             "type": "cppdbg",
             "request": "launch",
-            "program": "/home/shexingju/CODE/C_CPP_WORK_SPACE/multNodeCom/build/test_serial_protocol",
+            "program": "/home/shexingju/CODE/C_CPP_WORK_SPACE/multNodeCom/build/test_socket_protocol",
             "args": [],
             "stopAtEntry": true,
             "cwd": "${fileDirname}",

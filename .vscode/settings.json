@@ -26,6 +26,13 @@
         "functional": "c",
         "buffer": "c",
         "socket.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "chrono": "c",
+        "istream": "c",
+        "ostream": "c",
+        "ratio": "c",
+        "type_traits": "c",
+        "utility": "c",
+        "bus_socket_device.h": "c"
     }
 }

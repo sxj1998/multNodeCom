@@ -24,9 +24,9 @@ int socket_read(int sockfd, char *data, uint16_t length);
 
 void close_socket(int sockfd);
 
-void socket_client_address_init(struct sockaddr_in *serv_addr, const char* ip_addr, uint16_t port);
+int socket_client_address_init(struct sockaddr_in *serv_addr, const char* ip_addr, uint16_t port);
 
-void connect_to_server(int sockfd, struct sockaddr_in* serv_addr);
+int connect_to_server(int sockfd, struct sockaddr_in* serv_addr);
 
 void socket_server_address_init(struct sockaddr_in *serv_addr, uint16_t port) ;
 

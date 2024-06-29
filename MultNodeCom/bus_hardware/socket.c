@@ -32,21 +32,25 @@ void close_socket(int sockfd) {
 
 /************************client*******************************/
 
-void socket_client_address_init(struct sockaddr_in *serv_addr, const char* ip_addr, uint16_t port) {
+int socket_client_address_init(struct sockaddr_in *serv_addr, const char* ip_addr, uint16_t port) {
     bzero(serv_addr, sizeof(*serv_addr));
     serv_addr->sin_family = AF_INET;
     serv_addr->sin_port = htons(port);
     if (inet_pton(AF_INET, ip_addr, &serv_addr->sin_addr) <= 0) {
         printf("\nInvalid address/ Address not supported \n");
+        return -1;
     }
+    return 0;
 }
 
-void connect_to_server(int sockfd, struct sockaddr_in* serv_addr) {
+int connect_to_server(int sockfd, struct sockaddr_in* serv_addr) {
     if (connect(sockfd, (struct sockaddr *)serv_addr, sizeof(struct sockaddr_in)) == -1) {
         perror("connect");
         close(sockfd);
+        return -1;
     }
     printf("Connected to server: %s:%d\n", inet_ntoa(serv_addr->sin_addr), ntohs(serv_addr->sin_port));
+    return 0;
 }
 
 /************************server*******************************/

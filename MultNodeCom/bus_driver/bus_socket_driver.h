@@ -19,7 +19,8 @@
 extern "C" {
 #endif
 
-#define SOCKET_NAME_NUM     32
+
+#define SOCKET_NAME_NUM         32
 
 typedef struct{
     bus_driver_t* bus_driver;
@@ -27,7 +28,7 @@ typedef struct{
     char dev_name[SOCKET_NAME_NUM];
 }bus_socket_driver_t;
 
-bus_socket_driver_t* bus_socket_driver_register(const char* dev_name, uint8_t bus_id);
+bus_socket_driver_t* bus_socket_driver_register(const char* dev_name, uint8_t bus_id, char* socket_ip, uint16_t port, socket_type_e type);
 
 
 #ifdef __cplusplus
