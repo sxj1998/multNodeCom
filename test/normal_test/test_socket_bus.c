@@ -12,10 +12,10 @@
 #include <stdlib.h> 
 
 uint8_t buffer[10] = {1,2,3,4,5,6,7,8,9,10};
-uint8_t buffer_recv_data[256] = {1,2,3,4,5,6,7,8,9,10};
+
 
 pthread_t thread_recv_sync_id, thread_write_sync_id, thread_recv_sync_id1, thread_write_sync_id1, thread_recv_id, thread_recv_id1;
-pthread_t thread_wait_client_connect_thread_id, thread_client_write_test_id, thread_server_recv_test_id;
+pthread_t thread_wait_client_connect_thread_id, thread_client_write_test_id, thread_server_recv_test_id, thread_server_write_test_id, thread_client_recv_test_id;
 
 void* thread_wait_client_connect(void* arg)
 {
@@ -81,6 +81,34 @@ void* thread_client_write_test(void* arg)
 
 void* thread_server_recv_test(void* arg)
 {
+    uint8_t buffer_recv_data[256] = {1,2,3,4,5,6,7,8,9,10};
+    bus_socket_driver_t* socket = (bus_socket_driver_t*)arg;
+    while (1)
+    {
+        int ret_read = bus_read((bus_driver_t**)socket ,buffer_recv_data, 128);
+        if(ret_read > 0){
+            for(int i=0; i<ret_read; i++){
+                printf("%d ",buffer_recv_data[i]);
+            }
+            printf("\n");
+        }
+        usleep(10*1000);
+    }
+}
+
+void* thread_server_write_test(void* arg)
+{
+    bus_socket_driver_t* socket = (bus_socket_driver_t*)arg;
+    while (1)
+    {
+        bus_write((bus_driver_t**)socket ,buffer, 10);
+        usleep(1000*1000);
+    }
+}
+
+void* thread_client_recv_test(void* arg)
+{
+    uint8_t buffer_recv_data[256] = {1,2,3,4,5,6,7,8,9,10};
     bus_socket_driver_t* socket = (bus_socket_driver_t*)arg;
     while (1)
     {
@@ -124,14 +152,19 @@ int main(int argc, char **argv)
     pthread_create(&thread_write_sync_id1,NULL,thread_send_sync1, socket_server);
     pthread_detach(thread_write_sync_id1);
 
-    pthread_create(&thread_client_write_test_id,NULL,thread_client_write_test, socket_client);
-    pthread_detach(thread_client_write_test_id);
+    // pthread_create(&thread_client_write_test_id,NULL,thread_client_write_test, socket_client);
+    // pthread_detach(thread_client_write_test_id);
 
-    pthread_create(&thread_server_recv_test_id,NULL,thread_server_recv_test, socket_server);
-    pthread_detach(thread_server_recv_test_id);
+    // pthread_create(&thread_server_recv_test_id,NULL,thread_server_recv_test, socket_server);
+    // pthread_detach(thread_server_recv_test_id);
 
+    pthread_create(&thread_client_recv_test_id,NULL,thread_client_recv_test, socket_client);
+    pthread_detach(thread_client_recv_test_id);
 
-    bus_write((bus_driver_t**)socket_client ,buffer, 10);
+    pthread_create(&thread_server_write_test_id,NULL,thread_server_write_test, socket_server);
+    pthread_detach(thread_server_write_test_id);
+
+    // bus_write((bus_driver_t**)socket_client ,buffer, 10);
 
 
     // sleep(1);

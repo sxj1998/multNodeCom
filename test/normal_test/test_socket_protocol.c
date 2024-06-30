@@ -19,8 +19,10 @@ void* thread_wait_client_connect(void* arg)
     bus_socket_driver_t* socket = (bus_socket_driver_t*)arg;
     while (1)
     {
-        bus_open((bus_driver_t**)socket);
-        usleep(1000*1000);
+        int ret = bus_open((bus_driver_t**)socket);
+        usleep(100*1000);
+        if(ret == 0)
+            return 0;
     }
 }
 
@@ -30,7 +32,7 @@ void* thread_recv_sync(void* arg)
     while (1)
     {
         bus_sync_rx((bus_driver_t**)socket);
-        usleep(1000*1000);
+        usleep(10*1000);
     }
 }
 
@@ -40,7 +42,7 @@ void* thread_send_sync(void* arg)
     while (1)
     {
         bus_sync_tx((bus_driver_t**)socket);
-        usleep(1000*1000);
+        usleep(10*1000);
     }
 }
 
@@ -50,7 +52,7 @@ void* thread_recv_sync1(void* arg)
     while (1)
     {
         bus_sync_rx((bus_driver_t**)socket);
-        usleep(1000*1000);
+        usleep(10*1000);
     }
 }
 
@@ -60,7 +62,7 @@ void* thread_send_sync1(void* arg)
     while (1)
     {
         bus_sync_tx((bus_driver_t**)socket);
-        usleep(1000*1000);
+        usleep(10*1000);
     }
 }
 
@@ -72,7 +74,7 @@ void* thread_recv(void* arg)
     {
         // bus_read((bus_driver_t**)socket, buffer, 256);    
         routeRecvDataProc(route_ctrl);        
-        usleep(1000*1000);
+        usleep(10*1000);
     }
 }
 
@@ -84,7 +86,7 @@ void* thread_recv1(void* arg)
     {
         // bus_read((bus_driver_t**)socket, buffer, 256);    
         routeRecvDataProc(route_ctrl);        
-        usleep(1000*1000);
+        usleep(10*1000);
     }
 }
 
@@ -150,16 +152,14 @@ int main(int argc, char **argv)
     pthread_create(&thread_recv_id1,NULL, thread_recv1, route_ctrl1);
     pthread_detach(thread_recv_id1);
 
-    route_opt->send((void*)route_item,BOARD_ID_USB0 , BOARD_ID_USB1, 0x05, buffer, 10);
-
-    // sleep(1);
-
-    // route_opt1->send((void*)route_item1, 0x01, 0x05, buffer, 10);
+    // route_opt->send((void*)route_item,BOARD_ID_USB0 , BOARD_ID_USB1, 0x05, buffer, 10);
+    // route_opt1->send((void*)route_item1, BOARD_ID_USB1 , BOARD_ID_USB0, 0x05, buffer, 10);
 
     while(1)
     {
-        // bus_write((bus_driver_t**)socket,buffer,10);
-        
+        route_opt1->send((void*)route_item1, BOARD_ID_USB1 , BOARD_ID_USB0, 0x05, buffer, 10);
+        sleep(1);
+        route_opt->send((void*)route_item,BOARD_ID_USB0 , BOARD_ID_USB1, 0x05, buffer, 10);
         sleep(1);
     }
     

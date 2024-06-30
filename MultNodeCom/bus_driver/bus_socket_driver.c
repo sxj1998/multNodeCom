@@ -146,6 +146,7 @@ static int read_buff_x(void *self, uint8_t *data, uint16_t length)
 static int rb_write_sync_x(void *self)
 {
     bus_socket_driver_t* dev = (bus_socket_driver_t*)self;
+    socket_type_e type = dev->bus_device.type;
     struct rt_ringbuffer* write_rb = dev->bus_driver->write_rb;
     int write_socket_len = 0, write_rb_ret = 0;
     uint8_t recv_buffer[dev->bus_driver->bus_tx_buffer_size];
@@ -154,7 +155,11 @@ static int rb_write_sync_x(void *self)
     write_socket_len = rt_ringbuffer_get(write_rb, (uint8_t *)recv_buffer, (uint32_t)dev->bus_driver->bus_tx_buffer_size);
 
     if(write_socket_len > 0){
-        write_rb_ret = socket_write(dev->bus_device.fd, (uint8_t *)recv_buffer, write_socket_len);
+        if(type == SOCKET_CLIENT_TYPE){
+            write_rb_ret = socket_write(dev->bus_device.fd, (uint8_t *)recv_buffer, write_socket_len);
+        }else if(type == SOCKET_SERVER_TYPE){
+            write_rb_ret = socket_write(dev->bus_device.server_connect_client_fd, (uint8_t *)recv_buffer, write_socket_len);
+        }
     }
 
     if(write_rb_ret != write_socket_len)
