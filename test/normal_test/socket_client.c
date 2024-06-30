@@ -39,26 +39,30 @@ int main() {
 
     printf("Connected to server: %s:%d\n", inet_ntoa(serv_addr.sin_addr), ntohs(serv_addr.sin_port));
 
+    while(1){
+            // 向服务端发送请求、数据
+        bytes_sent = send(sockfd, request, strlen(request), 0);
+        if (bytes_sent == -1) {
+            perror("send");
+            close(sockfd);
+            exit(EXIT_FAILURE);
+        }
 
-    // 向服务端发送请求、数据
-   bytes_sent = send(sockfd, request, strlen(request), 0);
-    if (bytes_sent == -1) {
-        perror("send");
-        close(sockfd);
-        exit(EXIT_FAILURE);
+        printf("Sent %d bytes to server: %s\n", bytes_sent, request);
+
+        sleep(1);
     }
 
-    printf("Sent %d bytes to server: %s\n", bytes_sent, request);
 
-    // 接收服务端数据
-    bytes_received = recv(sockfd, buffer, BUFFER_SIZE, 0);
-    if (bytes_received == -1) {
-        perror("recv");
-        close(sockfd);
-        exit(EXIT_FAILURE);
-    }
+    // // 接收服务端数据
+    // bytes_received = recv(sockfd, buffer, BUFFER_SIZE, 0);
+    // if (bytes_received == -1) {
+    //     perror("recv");
+    //     close(sockfd);
+    //     exit(EXIT_FAILURE);
+    // }
 
-    printf("Received %d bytes from server: %s\n", bytes_received, buffer);
+    // printf("Received %d bytes from server: %s\n", bytes_received, buffer);
 
     // Close the socket
     close(sockfd);

@@ -79,15 +79,19 @@ static int open_x(void *self)
     int ret = 0; 
     bus_socket_driver_t* dev = (bus_socket_driver_t*)self;
     socket_type_e type = dev->bus_device.type;
-    uint8_t client_idx = dev->bus_device.server_connect_client_idx;
     int* fd = &(dev->bus_device.fd);
 
     if(type == SOCKET_CLIENT_TYPE){
         ret = connect_to_server(*fd, &dev->bus_device.socket_addr);
     }else if(type == SOCKET_SERVER_TYPE){
-        dev->bus_device.server_connect_client_fd[client_idx] = socket_server_accept_connection(*fd, &dev->bus_device.server_connect_client_sockaddr[client_idx]);
-        dev->bus_device.server_connect_client_idx++;
-        TI_DEBUG("client_server_sockfd  %d , idx %d\r\n", dev->bus_device.server_connect_client_fd[client_idx], client_idx);
+        dev->bus_device.server_connect_client_fd = socket_server_accept_connection(*fd, &dev->bus_device.server_connect_client_sockaddr);
+        if(dev->bus_device.server_connect_client_fd > 0) {
+            TI_DEBUG("client_server_sockfd  %d \r\n", dev->bus_device.server_connect_client_fd);
+        }else{
+            TI_DEBUG("client_server_sockfd get failed !!!\r\n");
+        }
+            
+        
     }
 
     return ret;
@@ -162,12 +166,17 @@ static int rb_write_sync_x(void *self)
 static int rb_read_sync_x(void *self)
 {
     bus_socket_driver_t* dev = (bus_socket_driver_t*)self;
+    socket_type_e type = dev->bus_device.type;
     struct rt_ringbuffer* read_rb = dev->bus_driver->read_rb;
     int read_socket_len = 0, socket_read_ret = 0;
     uint8_t recv_buffer[dev->bus_driver->bus_rx_buffer_size];
     memset(recv_buffer, 0, sizeof(recv_buffer));
 
-    read_socket_len = socket_read(dev->bus_device.fd,recv_buffer, (uint32_t)dev->bus_driver->bus_rx_buffer_size);
+    if(type == SOCKET_CLIENT_TYPE){
+        read_socket_len = socket_read(dev->bus_device.fd, recv_buffer, (uint32_t)dev->bus_driver->bus_rx_buffer_size);
+    }else if(type == SOCKET_SERVER_TYPE){
+        read_socket_len = socket_read(dev->bus_device.server_connect_client_fd, recv_buffer, (uint32_t)dev->bus_driver->bus_rx_buffer_size);
+    }
     
     if( read_socket_len > 0){
         socket_read_ret = rt_ringbuffer_put_force(read_rb, (uint8_t *)recv_buffer, (uint32_t)read_socket_len);
@@ -191,7 +200,6 @@ bus_socket_driver_t* bus_socket_driver_register(const char* dev_name, uint8_t bu
     socket_driver->bus_device.port = port;
     socket_driver->bus_device.type = type;
     socket_driver->bus_device.server_max_listen_num = SOCKET_LISTEN_MAX_NUM;
-    socket_driver->bus_device.server_connect_client_idx = 0;
     
     strncpy(socket_driver->dev_name, dev_name, sizeof(socket_driver->dev_name) - 1);
     socket_driver->dev_name[sizeof(socket_driver->dev_name) - 1] = '\0'; // 确保字符串以空字符结尾

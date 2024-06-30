@@ -44,13 +44,15 @@ int main() {
 
     printf("Server listening on port %d...\n", PORT);
 
+    // 接收新的客户端请求
+    client_sockfd = accept(sockfd, (struct sockaddr *)&client_addr, &client_addrlen);
+    if (client_sockfd == -1) {
+        perror("accept");
+    }
+    printf("client connected \r\n");
+
     while (1) {
-        // 接收新的客户端请求
-        client_sockfd = accept(sockfd, (struct sockaddr *)&client_addr, &client_addrlen);
-        if (client_sockfd == -1) {
-            perror("accept");
-            continue;
-        }
+
         // 接收客户端数据
         bytes_received = recv(client_sockfd, buffer, BUFFER_SIZE, 0);
         if (bytes_received == -1) {
@@ -58,21 +60,21 @@ int main() {
             close(client_sockfd);
             continue;
         }
+        if(bytes_received > 0)
+            printf("Received %d bytes from client: %s\n", bytes_received, buffer);
 
-        printf("Received %d bytes from client: %s\n", bytes_received, buffer);
+        // // 向客户端发送数据
+        // if (send(client_sockfd, response, strlen(response), 0) == -1) {
+        //     perror("send");
+        //     close(client_sockfd);
+        //     continue;
+        // }
 
-        // 向客户端发送数据
-        if (send(client_sockfd, response, strlen(response), 0) == -1) {
-            perror("send");
-            close(client_sockfd);
-            continue;
-        }
-
-        printf("Sent response to client: %s\n", response);
+        // printf("Sent response to client: %s\n", response);
 
         // 关闭当前套接字
-        close(client_sockfd);
-        printf("Client connection closed\n");
+        // close(client_sockfd);
+        // printf("Client connection closed\n");
     }
 
     // 关闭服务端套接字

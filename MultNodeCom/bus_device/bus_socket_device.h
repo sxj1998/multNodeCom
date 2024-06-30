@@ -17,10 +17,9 @@ typedef enum {
 }socket_type_e;
 
 typedef struct{
-    int fd;
-    int server_connect_client_fd[SOCKET_LISTEN_MAX_NUM];
-    struct sockaddr_in server_connect_client_sockaddr[SOCKET_LISTEN_MAX_NUM];
-    uint8_t server_connect_client_idx;
+    int fd;     
+    int server_connect_client_fd;   //用于server的连接的client fd
+    struct sockaddr_in server_connect_client_sockaddr;  //用于server的连接的client
     struct sockaddr_in socket_addr;
     socket_type_e type;
     char ipaddr[32];
