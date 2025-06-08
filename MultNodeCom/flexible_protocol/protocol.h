@@ -11,6 +11,9 @@
 #define GET_PACKET_LEN(data_length) ( sizeof(protocol_t) + data_length + sizeof(uint16_t) )
 #define GET_PACKET_LEN_WITHOUT_HEAD(data_length) ( data_length + sizeof(uint16_t) )
 
+typedef struct protocol_s protocol_t;
+typedef void (*packet_callback_t)(protocol_t *packet, void *user_data);
+
 typedef enum {
     PARSE_INCOMPLETE,   // 解析未完成
     PARSE_OK,           // 解析成功
@@ -35,7 +38,7 @@ typedef enum {
 } PARSE_STATE_e;
 
 #pragma pack (1)  
-typedef struct {
+typedef struct protocol_s{
     uint16_t head;          //0x5AA5
     uint8_t src_id;         //源地址
     uint8_t dst_id;         //目的地址
@@ -54,6 +57,8 @@ typedef struct {
     uint8_t header[7];      // 包头缓存 (head+src+dst+cmd+len)
     uint8_t header_index;   // 包头缓存索引
     uint8_t prev_byte;      // 用于异常包检测
+    packet_callback_t callback;
+    void *user_data;
 } proto_parser_t;
 
 protocol_t* proto_create_packet(uint8_t src_id, uint8_t dst_id, uint8_t cmd, uint16_t length, uint8_t* data);
@@ -68,6 +73,7 @@ int proto_parser_reset(proto_parser_t *parser);
 
 PARSE_STATUS_e proto_packet_parse(proto_parser_t* parser, uint8_t byte) ;
 
+void proto_parser_set_callback(proto_parser_t *parser, packet_callback_t callback, void *user_data);
 
 
 #endif

@@ -7,6 +7,11 @@
 static inline uint16_t htons(uint16_t hostshort) {
     return ((hostshort & 0xFF00) >> 8) | ((hostshort & 0x00FF) << 8);
 }
+
+void proto_parser_set_callback(proto_parser_t *parser, packet_callback_t callback, void *user_data) {
+    parser->callback = callback;
+    parser->user_data = user_data;
+}
 protocol_t* proto_create_packet(uint8_t src_id, uint8_t dst_id, uint8_t cmd, uint16_t length, uint8_t* data) {
     if (length > 0 && data == NULL)
         return NULL;
@@ -230,6 +235,11 @@ PARSE_STATUS_e proto_packet_parse(proto_parser_t* parser, uint8_t byte) {
                 return PARSE_CRC_ERR;
             }
             printf("=> CRC校验成功 完整包接收完毕\n");
+
+            if (parser->callback) {
+                parser->callback(parser->packet, parser->user_data);
+            }
+            proto_parser_reset(parser);
             return PARSE_OK;
         }
 
