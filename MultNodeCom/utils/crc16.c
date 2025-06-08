@@ -58,3 +58,8 @@ uint16_t crc16(const char *buf, int len) {
             crc = (crc<<8) ^ crc16tab[((crc>>8) ^ *buf++)&0x00FF];
     return crc;
 }
+
+/* CRC16更新函数 */
+uint16_t crc16_update(uint16_t crc, uint8_t data) {
+    return (crc << 8) ^ crc16tab[((crc >> 8) ^ data) & 0x00FF];
+}

@@ -16,6 +16,7 @@ set(INCLUDE_DIRS
     "${CMAKE_CURRENT_SOURCE_DIR}/bus_driver"
     "${CMAKE_CURRENT_SOURCE_DIR}/bus_hardware"
     "${CMAKE_CURRENT_SOURCE_DIR}/bus_core"
+    "${CMAKE_CURRENT_SOURCE_DIR}/flexible_protocol"
     "${CMAKE_CURRENT_SOURCE_DIR}/utils"
 )
 

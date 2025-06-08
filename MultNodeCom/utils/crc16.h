@@ -8,6 +8,8 @@ extern "C" {
 
 uint16_t crc16(const char *buf, int len);
 
+uint16_t crc16_update(uint16_t crc, uint8_t data);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus  */
