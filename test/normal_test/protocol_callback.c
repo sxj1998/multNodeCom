@@ -42,6 +42,7 @@ int main() {
         PARSE_STATUS_e status = proto_packet_parse(&parser, data[i]);
         if (status == PARSE_OK) {
             printf("主循环收到解析完成通知\n");
+        }else {
         }
     }
         
