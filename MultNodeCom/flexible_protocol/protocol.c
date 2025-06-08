@@ -4,6 +4,8 @@
 #include "protocol.h"
 #include "crc16.h"
 
+#include "debug_malloc.h"
+
 static inline uint16_t htons(uint16_t hostshort) {
     return ((hostshort & 0xFF00) >> 8) | ((hostshort & 0x00FF) << 8);
 }
