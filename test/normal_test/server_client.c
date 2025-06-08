@@ -3,12 +3,24 @@
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <signal.h>
 #include "protocol.h"
 
-uint8_t copy_data[1024] = {};
-uint16_t data_index = 0;
-// 定义管道用于线程间通信
+// 共享资源结构体
+typedef struct {
+    uint8_t data[1024];
+    uint16_t size;
+    pthread_mutex_t lock;        // 互斥锁
+} shared_buffer_t;
+
+volatile sig_atomic_t shutdown_requested = 0;  // 全局退出标志
+shared_buffer_t buffer = {{0}, 0, PTHREAD_MUTEX_INITIALIZER};  // 共享缓冲区
 proto_parser_t server_parser;
+
+// ================= 信号处理函数 =================
+void sigint_handler(int sig) {
+    shutdown_requested = 1;
+}
 
 // ================= 服务端处理函数 =================
 void server_packet_handler(protocol_t *packet, void *user_data) {
@@ -29,18 +41,25 @@ void server_packet_handler(protocol_t *packet, void *user_data) {
 
 // ================= 服务端线程函数 =================
 void *server_thread(void *arg) {
-    usleep(100*1000);
     printf("[Server] Starting...\n");
-    static uint16_t i = 0;
+    
     // 初始化协议解析器
     proto_parser_init(&server_parser);
     proto_parser_set_callback(&server_parser, server_packet_handler, NULL);
-    while(1){
-        if(data_index > 0){
-            printf("handle data: ");
-            while (data_index-- > 0) {
-                printf("%02x ", copy_data[i]);
-                PARSE_STATUS_e status = proto_packet_parse(&server_parser, copy_data[i++]);
+    
+    uint16_t processed = 0;  // 已处理的字节数
+    
+    while (!shutdown_requested) {
+        // 尝试锁定共享缓冲区
+        pthread_mutex_lock(&buffer.lock);
+        
+        if (buffer.size > processed) {
+            // 处理所有未处理的数据
+            while (processed < buffer.size && !shutdown_requested) {
+                printf("Processing byte %d: %02x\n", processed, buffer.data[processed]);
+                
+                PARSE_STATUS_e status = proto_packet_parse(&server_parser, buffer.data[processed]);
+                processed++;
                 
                 switch (status) {
                     case PARSE_HEADER_ERR:
@@ -59,58 +78,74 @@ void *server_thread(void *arg) {
                         printf("[Server] Memory error!\n");
                         break;
                     default:
-                        // 继续解析
                         break;
                 }
             }
-            i = 0;
-            data_index = 0;
-            usleep(100*1000);
         }
+        
+        // 解锁共享缓冲区
+        pthread_mutex_unlock(&buffer.lock);
+        
+        // 短暂休眠避免忙等待
+        usleep(10 * 1000); // 10ms
     }
+    
+    // 清理工作
     proto_parser_destroy(&server_parser);
     printf("[Server] Exiting.\n");
     return NULL;
-}
-
-// ================= 客户端处理函数 =================
-void client_packet_handler(protocol_t *packet, void *user_data) {
-    printf("\n[Client] Received response packet!\n");
-    printf("Source ID: %u\n", packet->src_id);
-    printf("Command: %u\n", packet->cmd);
-    printf("Data length: %u\n", packet->length);
-    
-    // 在这里处理服务器响应...
 }
 
 // ================= 客户端线程函数 =================
 void *client_thread(void *arg) {
     printf("[Client] Starting...\n");
     uint8_t test_data[] = {0x01, 0x02, 0x03, 0x04, 0x05};
-    while(1){
+    
+    while (!shutdown_requested) {
         // 创建要发送的测试数据
-        
         protocol_t *packet = proto_create_packet(1, 2, 0x10, 
                                             sizeof(test_data), test_data);
         
         size_t packet_size = GET_PACKET_LEN(packet->length);
-        data_index = packet_size;
-        memcpy(copy_data, packet, packet_size);
-        printf("[Client] Sending %zu bytes...\n", packet_size);
-        for(int i=0; i<packet_size; i++)
-            printf("%02x ", copy_data[i]);
-        printf("\r\n");
-        proto_packet_free(&packet);
-
+        
+        // 锁定共享缓冲区
+        pthread_mutex_lock(&buffer.lock);
+        
+        // 检查空间是否足够
+        if (buffer.size + packet_size <= sizeof(buffer.data)) {
+            memcpy(&buffer.data[buffer.size], packet, packet_size);
+            buffer.size += packet_size;
+            printf("[Client] Added packet to buffer (%zu bytes), total: %d\n", 
+                   packet_size, buffer.size);
+        } else {
+            printf("[Client] Buffer full! Unable to add packet.\n");
+        }
+        
+        // 解锁共享缓冲区
+        pthread_mutex_unlock(&buffer.lock);
+        
+        // 发送间隔
         sleep(1);
+        
+        // 释放包内存
+        proto_packet_free(&packet);
     }
-
+    
+    printf("[Client] Exiting.\n");
     return NULL;
 }
 
 // ================= 主函数 =================
 int main() {
     pthread_t s_tid, c_tid;
+    
+    // 注册信号处理
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = sigint_handler;
+    sigaction(SIGINT, &sa, NULL);
+    
+    printf("Press Ctrl+C to exit...\n");
     
     // 创建服务端线程
     if (pthread_create(&s_tid, NULL, server_thread, NULL)) {
@@ -128,5 +163,9 @@ int main() {
     pthread_join(s_tid, NULL);
     pthread_join(c_tid, NULL);
     
+    // 销毁互斥锁
+    pthread_mutex_destroy(&buffer.lock);
+    
+    printf("Main: Program exited cleanly.\n");
     return 0;
 }
