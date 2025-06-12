@@ -1,212 +1,293 @@
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
+/* ================= protocol.c ================= */
 #include "protocol.h"
 #include "crc16.h"
+#include <string.h>
 
-#include "debug_malloc.h"
+/* 日志回调 */
+#ifdef PROTO_ENABLE_LOGGING
+static log_callback_t g_logger = NULL;
 
-static inline uint16_t htons(uint16_t hostshort) {
-    return ((hostshort & 0xFF00) >> 8) | ((hostshort & 0x00FF) << 8);
+void proto_set_logger(log_callback_t logger) {
+    g_logger = logger;
 }
 
-void proto_parser_set_callback(proto_parser_t *parser, packet_callback_t callback, void *user_data) {
-    parser->callback = callback;
-    parser->user_data = user_data;
-}
-protocol_t* proto_create_packet(uint8_t src_id, uint8_t dst_id, uint8_t cmd, uint16_t length, uint8_t* data) {
-    if (length > 0 && data == NULL)
-        return NULL;
-
-    uint16_t crc16_res = 0;                                        
-    size_t total_size = sizeof(protocol_t) + length + sizeof(crc16_res);
+#define LOG_DEBUG(fmt, ...) \
+    do { \
+        if (g_logger) g_logger(PROTO_LOG_DEBUG, fmt, ##__VA_ARGS__); \
+    } while(0)
     
+#define LOG_WARNING(fmt, ...) \
+    do { \
+        if (g_logger) g_logger(PROTO_LOG_WARNING, fmt, ##__VA_ARGS__); \
+    } while(0)
+    
+#define LOG_ERROR(fmt, ...) \
+    do { \
+        if (g_logger) g_logger(PROTO_LOG_ERROR, fmt, ##__VA_ARGS__); \
+    } while(0)
+#else
+/* 禁用日志时使用空宏 */
+#define proto_set_logger(logger) do {} while(0)
+#define LOG_DEBUG(fmt, ...)
+#define LOG_WARNING(fmt, ...)
+#define LOG_ERROR(fmt, ...)
+#endif
+
+/* 状态处理函数声明 */
+static PARSE_STATUS handle_header1(proto_parser_t* parser, uint8_t byte);
+static PARSE_STATUS handle_header2(proto_parser_t* parser, uint8_t byte);
+static PARSE_STATUS handle_src_id(proto_parser_t* parser, uint8_t byte);
+static PARSE_STATUS handle_dst_id(proto_parser_t* parser, uint8_t byte);
+static PARSE_STATUS handle_cmd(proto_parser_t* parser, uint8_t byte);
+static PARSE_STATUS handle_len1(proto_parser_t* parser, uint8_t byte);
+static PARSE_STATUS handle_len2(proto_parser_t* parser, uint8_t byte);
+static PARSE_STATUS handle_data(proto_parser_t* parser, uint8_t byte);
+static PARSE_STATUS handle_crc1(proto_parser_t* parser, uint8_t byte);
+static PARSE_STATUS handle_crc2(proto_parser_t* parser, uint8_t byte);
+
+/* 状态处理函数指针数组 */
+static PARSE_STATUS (*const state_handlers[])(proto_parser_t*, uint8_t) = {
+    handle_header1,  // STATE_HEADER1
+    handle_header2,  // STATE_HEADER2
+    handle_src_id,   // STATE_SRC_ID
+    handle_dst_id,   // STATE_DST_ID
+    handle_cmd,      // STATE_CMD
+    handle_len1,     // STATE_LEN1
+    handle_len2,     // STATE_LEN2
+    handle_data,     // STATE_DATA
+    handle_crc1,     // STATE_CRC1
+    handle_crc2      // STATE_CRC2
+};
+
+/* ================= 公共接口函数 ================= */
+
+/* 创建数据包 */
+void* proto_create_packet(uint8_t src_id, uint8_t dst_id, uint8_t cmd, uint16_t length, const uint8_t* data) {
+    if (length > MAX_PACKET_SIZE) {
+        LOG_ERROR("Packet len %u > MAX %u", length, MAX_PACKET_SIZE);
+        return NULL;
+    }
+    
+    if (length > 0 && !data) {
+        LOG_ERROR("Data required for non-zero len");
+        return NULL;
+    }
+    
+    size_t total_size = GET_PACKET_LEN(length);
     protocol_t* packet = malloc(total_size);
-    if (!packet) 
+    if (!packet) {
+        LOG_ERROR("Alloc failed size %zu", total_size);
         return NULL;
+    }
     
-    packet->head = htons(PACKET_HEAD);
+    packet->head = PROTO_HTONS(PACKET_HEAD);
     packet->src_id = src_id;
     packet->dst_id = dst_id;
     packet->cmd = cmd;
-    packet->length = length;
+    packet->length = PROTO_HTONS(length);
     
-    if (length > 0 && data) {
+    if (length > 0) {
         memcpy(packet->data, data, length);
     }
     
-    crc16_res = htons(crc16((const char*)packet, sizeof(protocol_t) + length));
-    ((uint8_t *)packet)[total_size - 2] = crc16_res & 0xff;
-    ((uint8_t *)packet)[total_size - 1] = (crc16_res >> 8) & 0xff; 
-
+    uint16_t crc = crc16((const char*)packet, sizeof(protocol_t) + length);
+    uint16_t net_crc = PROTO_HTONS(crc);
+    memcpy(packet->data + length, &net_crc, sizeof(net_crc));
+    
+    LOG_DEBUG("Created: src=%u, dst=%u, cmd=%u, len=%u", src_id, dst_id, cmd, length);
+    
     return packet;
 }
 
-int proto_packet_free(protocol_t **packet) {
-    if(*packet && packet){
-        free(*packet);
-        *packet = NULL;
-    }else{
-        printf(" packet has been free !!! \r\n");
-        return -1;
-    }
-    return 0;
+/* 释放数据包 */
+void proto_packet_free(void** packet_ptr) {
+    if (!packet_ptr || !*packet_ptr) return;
+    free(*packet_ptr);
+    *packet_ptr = NULL;
 }
 
-int proto_parser_reset(proto_parser_t *parser) {
-    printf("== proto_parser_reset ==\r\n");
+/* 初始化解析器 */
+void proto_parser_init(proto_parser_t* parser) {
+    if (!parser) return;
+    
+    memset(parser, 0, sizeof(proto_parser_t));
+    parser->crc = 0xFFFF;
+}
+
+/* 销毁解析器 */
+void proto_parser_destroy(proto_parser_t* parser) {
+    if (!parser) return;
+    proto_parser_reset(parser);
+}
+
+/* 重置解析器状态 */
+/* 重置解析器状态 */
+void proto_parser_reset(proto_parser_t* parser) {
+    if (!parser) return;
+    
     if (parser->packet) {
         free(parser->packet);
         parser->packet = NULL;
-    }else{
-        printf(" packet has been free !!! \r\n");
-        return -1;
     }
-    parser->data_index = 0;
+    
     parser->state = STATE_HEADER1;
-    parser->crc = 0;
-    parser->header_index = 0;
+    parser->expected_len = 0;
+    parser->data_index = 0;
+    parser->src_id = 0;
+    parser->dst_id = 0;
+    parser->cmd = 0;
+    parser->crc = 0xFFFF;
     parser->received_crc = 0;
-    memset(parser->header, 0, sizeof(parser->header));
-    return 0;
-}
-void proto_parser_init(proto_parser_t *parser) {
-    printf(" proto_parser_init \r\n");
-    memset(parser, 0, sizeof(proto_parser_t));
-    proto_parser_reset(parser);
 }
 
-void proto_parser_destroy(proto_parser_t *parser) {
-    proto_parser_reset(parser);
+/* 设置数据包回调函数 */
+void proto_parser_set_callback(proto_parser_t* parser, packet_callback_t callback, void* user_data) {
+    if (!parser) return;
+    parser->callback = callback;
+    parser->user_data = user_data;
 }
 
-PARSE_STATUS_e proto_packet_parse(proto_parser_t* parser, uint8_t byte) {
-    switch (parser->state) {
-        case STATE_HEADER1:
-            if (byte == ((PACKET_HEAD >> 8) & 0xFF)) {
-                parser->header[parser->header_index++] = byte;
-                parser->crc = crc16_update(parser->crc, byte);
-                parser->state = STATE_HEADER2;
-            } else {
-                proto_parser_reset(parser);
-                return PARSE_HEADER_ERR;
-            }
-            break;
-            
-        case STATE_HEADER2:
-            if (byte == (PACKET_HEAD & 0xFF)) {
-                parser->header[parser->header_index++] = byte;
-                parser->crc = crc16_update(parser->crc, byte);
-                parser->state = STATE_SRC_ID;
-            } else {
-                proto_parser_reset(parser);
-                return PARSE_HEADER_ERR;
-            }
-            break;
-            
-        case STATE_SRC_ID:
-            parser->header[parser->header_index++] = byte;
-            parser->crc = crc16_update(parser->crc, byte);
-            parser->state = STATE_DST_ID;
-            break;
-            
-        case STATE_DST_ID:
-            parser->header[parser->header_index++] = byte;
-            parser->crc = crc16_update(parser->crc, byte);
-            parser->state = STATE_CMD;
-            break;
-            
-        case STATE_CMD:
-            parser->header[parser->header_index++] = byte;
-            parser->crc = crc16_update(parser->crc, byte);
-            parser->state = STATE_LEN1;
-            break;
-            
-        case STATE_LEN1:
-            parser->header[parser->header_index++] = byte;
-            parser->crc = crc16_update(parser->crc, byte);
-            parser->state = STATE_LEN2;
-            break;
-            
-        case STATE_LEN2: {
-            parser->header[parser->header_index++] = byte;
-            parser->crc = crc16_update(parser->crc, byte);
-            
-            uint16_t length = (parser->header[6] << 8) | parser->header[5];
-            if (length > MAX_PACKET_SIZE) {
-                proto_parser_reset(parser);
-                return PARSE_LENGTH_ERR;
-            }
-            
-            size_t total_size = GET_PACKET_LEN(length);
-            parser->packet = malloc(total_size);
-            if (!parser->packet) {
-                proto_parser_reset(parser);
-                return PARSE_MEM_ERR;
-            }
-            
-            memcpy(parser->packet, parser->header, sizeof(parser->header));
-            parser->data_index = 0;
-            
-            if (length > 0) {
-                parser->state = STATE_DATA;
-            } else {
-                parser->state = STATE_CRC1;
-            }
-            break;
-        }
-            
-        case STATE_DATA:
-            // 主动检测包头特征 (0x5A后接0xA5)
-            if (parser->prev_byte == ((PACKET_HEAD >> 8) & 0xFF) && byte == (PACKET_HEAD & 0xFF)) {
-                proto_parser_reset(parser);
-                
-                parser->crc = crc16_update(parser->crc, ((PACKET_HEAD >> 8) & 0xFF));
-                parser->header[parser->header_index++] = ((PACKET_HEAD >> 8) & 0xFF);
-                
-                parser->crc = crc16_update(parser->crc, (PACKET_HEAD & 0xFF));
-                parser->header[parser->header_index++] = (PACKET_HEAD & 0xFF);
-                
-                parser->state = STATE_SRC_ID;
-                parser->prev_byte = 0; 
-                break;
-            }
-            parser->prev_byte = byte;
+/* ================= 解析状态机函数 ================= */
 
-            if (parser->data_index >= MAX_PACKET_SIZE) {
-                proto_parser_reset(parser);
-                return PARSE_LENGTH_ERR;
-            }
-
-            parser->packet->data[parser->data_index++] = byte;
-            parser->crc = crc16_update(parser->crc, byte);
-
-            if (parser->data_index >= parser->packet->length) {
-                parser->state = STATE_CRC1;
-            }
-
-            break;
-            
-        case STATE_CRC1:
-            parser->received_crc = (uint16_t)byte << 8;
-            parser->state = STATE_CRC2;
-            break;
-            
-        case STATE_CRC2: {
-            parser->received_crc |= byte;        
-
-            if (parser->received_crc != parser->crc) {
-                proto_parser_reset(parser);
-                return PARSE_CRC_ERR;
-            }
-
-            if (parser->callback) {
-                parser->callback(parser->packet, parser->user_data);
-            }
-            proto_parser_reset(parser);
-            return PARSE_OK;
-        }
+static PARSE_STATUS handle_header1(proto_parser_t* parser, uint8_t byte) {
+    if (byte == ((PACKET_HEAD >> 8) & 0xFF)) {
+        parser->crc = crc16_update(parser->crc, byte);
+        parser->state = STATE_HEADER2;
+        return PARSE_INCOMPLETE;
     }
+    
+    LOG_WARNING("Header1 exp 0x%02X got 0x%02X", (PACKET_HEAD >> 8) & 0xFF, byte);
+    proto_parser_reset(parser);
+    return PARSE_ERROR_HEADER;
+}
 
+static PARSE_STATUS handle_header2(proto_parser_t* parser, uint8_t byte) {
+    if (byte == (PACKET_HEAD & 0xFF)) {
+        parser->crc = crc16_update(parser->crc, byte);
+        parser->state = STATE_SRC_ID;
+        return PARSE_INCOMPLETE;
+    }
+    
+    LOG_WARNING("Header2 exp 0x%02X got 0x%02X", PACKET_HEAD & 0xFF, byte);
+    proto_parser_reset(parser);
+    return PARSE_ERROR_HEADER;
+}
+
+static PARSE_STATUS handle_src_id(proto_parser_t* parser, uint8_t byte) {
+    parser->src_id = byte;
+    parser->crc = crc16_update(parser->crc, byte);
+    parser->state = STATE_DST_ID;
     return PARSE_INCOMPLETE;
+}
+
+static PARSE_STATUS handle_dst_id(proto_parser_t* parser, uint8_t byte) {
+    parser->dst_id = byte;
+    parser->crc = crc16_update(parser->crc, byte);
+    parser->state = STATE_CMD;
+    return PARSE_INCOMPLETE;
+}
+
+static PARSE_STATUS handle_cmd(proto_parser_t* parser, uint8_t byte) {
+    parser->cmd = byte;
+    parser->crc = crc16_update(parser->crc, byte);
+    parser->state = STATE_LEN1;
+    return PARSE_INCOMPLETE;
+}
+
+static PARSE_STATUS handle_len1(proto_parser_t* parser, uint8_t byte) {
+    parser->expected_len = (uint16_t)byte << 8;
+    parser->crc = crc16_update(parser->crc, byte);
+    parser->state = STATE_LEN2;
+    return PARSE_INCOMPLETE;
+}
+
+static PARSE_STATUS handle_len2(proto_parser_t* parser, uint8_t byte) {
+    parser->expected_len |= byte;
+    parser->crc = crc16_update(parser->crc, byte);
+    
+    if (parser->expected_len > MAX_PACKET_SIZE) {
+        LOG_ERROR("Invalid len %u > MAX %u", parser->expected_len, MAX_PACKET_SIZE);
+        proto_parser_reset(parser);
+        return PARSE_ERROR_LENGTH;
+    }
+    
+    if (parser->expected_len > 0) {
+        parser->state = STATE_DATA;
+    } else {
+        parser->state = STATE_CRC1;
+    }
+    
+    parser->packet = malloc(GET_PACKET_LEN(parser->expected_len));
+    if (!parser->packet) {
+        LOG_ERROR("Alloc failed len %u", parser->expected_len);
+        proto_parser_reset(parser);
+        return PARSE_ERROR_MEMORY;
+    }
+    
+    /* 填充已知字段 */
+    parser->packet->head = PROTO_HTONS(PACKET_HEAD);
+    parser->packet->src_id = parser->src_id;
+    parser->packet->dst_id = parser->dst_id;
+    parser->packet->cmd = parser->cmd;
+    parser->packet->length = PROTO_HTONS(parser->expected_len);
+    
+    parser->data_index = 0;
+    return PARSE_INCOMPLETE;
+}
+
+static PARSE_STATUS handle_data(proto_parser_t* parser, uint8_t byte) {
+    if (parser->data_index >= parser->expected_len) {
+        LOG_ERROR("Data index %u overflow", parser->data_index);
+        proto_parser_reset(parser);
+        return PARSE_ERROR_LENGTH;
+    }
+    
+    parser->packet->data[parser->data_index++] = byte;
+    parser->crc = crc16_update(parser->crc, byte);
+    
+    if (parser->data_index >= parser->expected_len) {
+        parser->state = STATE_CRC1;
+    }
+    
+    return PARSE_INCOMPLETE;
+}
+
+static PARSE_STATUS handle_crc1(proto_parser_t* parser, uint8_t byte) {
+    parser->received_crc = (uint16_t)byte << 8;
+    parser->state = STATE_CRC2;
+    return PARSE_INCOMPLETE;
+}
+
+static PARSE_STATUS handle_crc2(proto_parser_t* parser, uint8_t byte) {
+    parser->received_crc |= byte;
+    
+    if (parser->received_crc != parser->crc) {
+        LOG_ERROR("CRC exp 0x%04X got 0x%04X", parser->crc, parser->received_crc);
+        proto_parser_reset(parser);
+        return PARSE_ERROR_CRC;
+    }
+    
+    /* 所有权转移给回调 */
+    protocol_t* completed = parser->packet;
+    parser->packet = NULL;
+    
+    if (parser->callback) {
+        parser->callback(completed, parser->user_data);
+    } else {
+        free(completed);
+    }
+    
+    proto_parser_reset(parser);
+    return PARSE_OK;
+}
+
+/* 主解析函数 */
+PARSE_STATUS proto_packet_parse(proto_parser_t* parser, uint8_t byte) {
+    if (!parser) return PARSE_ERROR_INTERNAL;
+    if (parser->state >= sizeof(state_handlers)/sizeof(state_handlers[0])) {
+        LOG_ERROR("Invalid state %d", parser->state);
+        proto_parser_reset(parser);
+        return PARSE_ERROR_INTERNAL;
+    }
+    return state_handlers[parser->state](parser, byte);
 }
