@@ -3,25 +3,43 @@
 #include <string.h>
 #include "protocol.h"
 #include "utils/crc16.h"
+#include "xlog.h"
 
-// 日志回调
-void log_handler(PROTO_LOG_LEVEL level, const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
+/* 自定义日志处理器实现 */
+void custom_log_handler(LogLevel level, const char* message, void* user_data) {
+    // 从用户数据获取日志文件名
+    const char* filename = (const char*)user_data;
     
-    const char* level_str = "";
-    switch(level) {
-        case PROTO_LOG_DEBUG: level_str = "[DEBUG] "; break;
-        case PROTO_LOG_WARNING: level_str = "[WARN] "; break;
-        case PROTO_LOG_ERROR: level_str = "[ERROR] "; break;
-        default: break;
+    // 仅记录警告及以上级别的日志到文件
+    if (level >= LOG_LEVEL_WARNING && filename != NULL) {
+        FILE* logfile = fopen(filename, "a");
+        if (logfile) {
+            fprintf(logfile, "%s", message);
+            fclose(logfile);
+        }
     }
     
-    printf("%s", level_str);
-    vprintf(fmt, args);
-    printf("\n");
-    
-    va_end(args);
+    // 所有日志都输出到控制台 (带颜色)
+    switch (level) {
+        case LOG_LEVEL_DEBUG:
+            printf("\033[0;36m"); // 青色
+            break;
+        case LOG_LEVEL_INFO:
+            printf("\033[0;32m"); // 绿色
+            break;
+        case LOG_LEVEL_WARNING:
+            printf("\033[0;33m"); // 黄色
+            break;
+        case LOG_LEVEL_ERROR:
+            printf("\033[0;31m"); // 红色
+            break;
+        case LOG_LEVEL_CRITICAL:
+            printf("\033[1;31m"); // 粗体红色
+            break;
+        default:
+            printf("\033[0m"); // 默认
+    }
+    printf("%s\033[0m", message); // 重置颜色
 }
 
 // 包回调
@@ -40,9 +58,12 @@ void packet_handler(void* packet, void* user_data) {
     proto_packet_free(&packet);
 }
 
-int main() {
-    proto_set_logger(log_handler);
-    
+int main() {    
+
+    // 初始化日志系统
+    log_init(LOG_LEVEL_DEBUG, 
+            0, 
+            custom_log_handler, NULL);
     proto_parser_t parser;
     proto_parser_init(&parser);
     proto_parser_set_callback(&parser, packet_handler, NULL);
@@ -65,13 +86,13 @@ int main() {
     
     // 解析每个字节
     for (size_t i = 0; i < total_size; i++) {
-        printf("Processing byte %02X\n", sample_data[i]);
+        LOG_INFO("Processing byte %02X\n", sample_data[i]);
         PARSE_STATUS status = proto_packet_parse(&parser, sample_data[i]);
         
         if (status == PARSE_OK) {
-            printf("Packet parsed successfully\n");
+            LOG_INFO("Packet parsed successfully\n");
         } else if (status != PARSE_INCOMPLETE) {
-            printf("Parse error: %d\n", status);
+            LOG_INFO("Parse error: %d\n", status);
             break;
         }
     }

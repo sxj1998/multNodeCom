@@ -1,37 +1,8 @@
 /* ================= protocol.c ================= */
 #include "protocol.h"
 #include "crc16.h"
+#include "xlog.h"
 #include <string.h>
-
-/* 日志回调 */
-#ifdef PROTO_ENABLE_LOGGING
-static log_callback_t g_logger = NULL;
-
-void proto_set_logger(log_callback_t logger) {
-    g_logger = logger;
-}
-
-#define LOG_DEBUG(fmt, ...) \
-    do { \
-        if (g_logger) g_logger(PROTO_LOG_DEBUG, fmt, ##__VA_ARGS__); \
-    } while(0)
-    
-#define LOG_WARNING(fmt, ...) \
-    do { \
-        if (g_logger) g_logger(PROTO_LOG_WARNING, fmt, ##__VA_ARGS__); \
-    } while(0)
-    
-#define LOG_ERROR(fmt, ...) \
-    do { \
-        if (g_logger) g_logger(PROTO_LOG_ERROR, fmt, ##__VA_ARGS__); \
-    } while(0)
-#else
-/* 禁用日志时使用空宏 */
-#define proto_set_logger(logger) do {} while(0)
-#define LOG_DEBUG(fmt, ...)
-#define LOG_WARNING(fmt, ...)
-#define LOG_ERROR(fmt, ...)
-#endif
 
 /* 状态处理函数声明 */
 static PARSE_STATUS handle_header1(proto_parser_t* parser, uint8_t byte);
@@ -156,7 +127,7 @@ static PARSE_STATUS handle_header1(proto_parser_t* parser, uint8_t byte) {
         return PARSE_INCOMPLETE;
     }
     
-    LOG_WARNING("Header1 exp 0x%02X got 0x%02X", (PACKET_HEAD >> 8) & 0xFF, byte);
+    LOG_WARN("Header1 exp 0x%02X got 0x%02X", (PACKET_HEAD >> 8) & 0xFF, byte);
     proto_parser_reset(parser);
     return PARSE_ERROR_HEADER;
 }
@@ -168,7 +139,7 @@ static PARSE_STATUS handle_header2(proto_parser_t* parser, uint8_t byte) {
         return PARSE_INCOMPLETE;
     }
     
-    LOG_WARNING("Header2 exp 0x%02X got 0x%02X", PACKET_HEAD & 0xFF, byte);
+    LOG_WARN("Header2 exp 0x%02X got 0x%02X", PACKET_HEAD & 0xFF, byte);
     proto_parser_reset(parser);
     return PARSE_ERROR_HEADER;
 }
