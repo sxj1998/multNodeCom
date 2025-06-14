@@ -9,6 +9,8 @@ static PARSE_STATUS handle_header1(proto_parser_t* parser, uint8_t byte);
 static PARSE_STATUS handle_header2(proto_parser_t* parser, uint8_t byte);
 static PARSE_STATUS handle_src_id(proto_parser_t* parser, uint8_t byte);
 static PARSE_STATUS handle_dst_id(proto_parser_t* parser, uint8_t byte);
+static PARSE_STATUS handle_index1(proto_parser_t* parser, uint8_t byte);
+static PARSE_STATUS handle_index2(proto_parser_t* parser, uint8_t byte);
 static PARSE_STATUS handle_cmd(proto_parser_t* parser, uint8_t byte);
 static PARSE_STATUS handle_len1(proto_parser_t* parser, uint8_t byte);
 static PARSE_STATUS handle_len2(proto_parser_t* parser, uint8_t byte);
@@ -20,6 +22,8 @@ static PARSE_STATUS handle_crc2(proto_parser_t* parser, uint8_t byte);
 static PARSE_STATUS (*const state_handlers[])(proto_parser_t*, uint8_t) = {
     handle_header1,  // STATE_HEADER1
     handle_header2,  // STATE_HEADER2
+    handle_index1,   // STATE_INDEX1
+    handle_index2,   // STATE_INDEX2
     handle_src_id,   // STATE_SRC_ID
     handle_dst_id,   // STATE_DST_ID
     handle_cmd,      // STATE_CMD
@@ -34,6 +38,8 @@ static PARSE_STATUS (*const state_handlers[])(proto_parser_t*, uint8_t) = {
 
 /* 创建数据包 */
 void* proto_create_packet(uint8_t src_id, uint8_t dst_id, uint8_t cmd, uint16_t length, const uint8_t* data) {
+    static uint16_t index = 0;
+
     if (length > MAX_PACKET_SIZE) {
         LOG_ERROR("Packet len %u > MAX %u", length, MAX_PACKET_SIZE);
         return NULL;
@@ -52,6 +58,7 @@ void* proto_create_packet(uint8_t src_id, uint8_t dst_id, uint8_t cmd, uint16_t 
     }
     
     packet->head = PROTO_HTONS(PACKET_HEAD);
+    packet->index = PROTO_HTONS(index++);
     packet->src_id = src_id;
     packet->dst_id = dst_id;
     packet->cmd = cmd;
@@ -65,7 +72,7 @@ void* proto_create_packet(uint8_t src_id, uint8_t dst_id, uint8_t cmd, uint16_t 
     uint16_t net_crc = PROTO_HTONS(crc);
     memcpy(packet->data + length, &net_crc, sizeof(net_crc));
     
-    LOG_DEBUG("Created: src=%u, dst=%u, cmd=%u, len=%u", src_id, dst_id, cmd, length);
+    LOG_DEBUG("Created: src=%u, dst=%u, index=%u, cmd=%u, len=%u", src_id, dst_id, index, cmd, length);
     
     return packet;
 }
@@ -135,13 +142,27 @@ static PARSE_STATUS handle_header1(proto_parser_t* parser, uint8_t byte) {
 static PARSE_STATUS handle_header2(proto_parser_t* parser, uint8_t byte) {
     if (byte == (PACKET_HEAD & 0xFF)) {
         parser->crc = crc16_update(parser->crc, byte);
-        parser->state = STATE_SRC_ID;
+        parser->state = STATE_INDEX1;
         return PARSE_INCOMPLETE;
     }
     
     LOG_WARN("Header2 exp 0x%02X got 0x%02X", PACKET_HEAD & 0xFF, byte);
     proto_parser_reset(parser);
     return PARSE_ERROR_HEADER;
+}
+
+static PARSE_STATUS handle_index1(proto_parser_t* parser, uint8_t byte){
+    parser->index = (uint16_t)byte << 8;
+    parser->crc = crc16_update(parser->crc, byte);
+    parser->state = STATE_INDEX2;
+    return PARSE_INCOMPLETE;
+}
+
+static PARSE_STATUS handle_index2(proto_parser_t* parser, uint8_t byte){
+    parser->index |= byte;
+    parser->crc = crc16_update(parser->crc, byte);
+    parser->state = STATE_SRC_ID;
+    return PARSE_INCOMPLETE;
 }
 
 static PARSE_STATUS handle_src_id(proto_parser_t* parser, uint8_t byte) {
@@ -197,6 +218,7 @@ static PARSE_STATUS handle_len2(proto_parser_t* parser, uint8_t byte) {
     
     /* 填充已知字段 */
     parser->packet->head = PROTO_HTONS(PACKET_HEAD);
+    parser->packet->index = parser->index;
     parser->packet->src_id = parser->src_id;
     parser->packet->dst_id = parser->dst_id;
     parser->packet->cmd = parser->cmd;

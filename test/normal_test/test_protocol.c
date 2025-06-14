@@ -46,7 +46,7 @@ void custom_log_handler(LogLevel level, const char* message, void* user_data) {
 void packet_handler(void* packet, void* user_data) {
     protocol_t* p = (protocol_t*)packet;
     uint16_t length = PROTO_NTOHS(p->length);
-    printf("Received packet: cmd=%u, len=%u\n", p->cmd, length);
+    printf("Received packet:index=%u cmd=%u, len=%u\n",p->index, p->cmd, length);
     
     // 处理包数据...
     printf("Data: ");

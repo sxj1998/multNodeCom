@@ -50,6 +50,8 @@ typedef enum {
 typedef enum {
     STATE_HEADER1,          // 等待包头高字节
     STATE_HEADER2,          // 等待包头低字节
+    STATE_INDEX1,            // 等待包索引
+    STATE_INDEX2,            // 等待包索引
     STATE_SRC_ID,           // 等待源地址
     STATE_DST_ID,           // 等待目的地址
     STATE_CMD,              // 等待命令
@@ -65,6 +67,7 @@ typedef enum {
 #pragma pack(push, 1)
 typedef struct {
     uint16_t head;          // 固定包头 0x5AA5
+    uint16_t index;         // 包索引
     uint8_t src_id;         // 源地址
     uint8_t dst_id;         // 目的地址
     uint8_t cmd;            // 命令字
@@ -83,6 +86,7 @@ typedef struct {
     uint16_t data_index;    // 当前数据索引
     uint16_t crc;           // 当前计算的CRC值
     uint16_t received_crc;  // 接收到的CRC值
+    uint16_t index;         // 临时存储索引
     uint8_t src_id;         // 临时存储源地址
     uint8_t dst_id;         // 临时存储目的地址
     uint8_t cmd;            // 临时存储命令字
