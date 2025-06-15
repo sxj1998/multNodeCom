@@ -30,7 +30,7 @@ void node_init(Node* node, uint8_t node_id, HardwareInterface* hw_if);
 void node_destroy(Node* node);
 void node_set_packet_handler(Node* node, void (*handler)(Node*, protocol_t*));
 void node_add_route(Node* node, uint8_t dest_id, HardwareInterface* hw_if);
-void node_receive_byte(Node* node, uint8_t byte);
+PARSE_STATUS node_receive_byte(Node* node, uint8_t byte);
 void node_forward_packet(Node* node, protocol_t* packet);
 bool node_send_packet(Node* node, uint8_t dest_id, uint8_t cmd, 
                      uint16_t data_len, const uint8_t* data);

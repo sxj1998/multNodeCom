@@ -79,7 +79,7 @@ static void packet_parser_callback(void* packet_, void* user_data) {
 }
 
 // 接收字节处理
-void node_receive_byte(Node* node, uint8_t byte) {
+PARSE_STATUS node_receive_byte(Node* node, uint8_t byte) {
     static bool callback_set = false;
     if (!callback_set) {
         proto_parser_set_callback(&node->parser, packet_parser_callback, node);
