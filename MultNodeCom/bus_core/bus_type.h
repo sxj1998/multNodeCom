@@ -1,0 +1,44 @@
+/**
+ * @file bus_type.h
+ * @author shexingju (1970237065@qq.com)
+ * @brief 
+ * @version 0.1
+ * @date 2024-06-23
+ * 
+ * @copyright Copyright (c) 2024
+ * 
+ */
+
+#ifndef DA348ADB_0E29_47A8_B9B1_98FB1BCAFEBE
+#define DA348ADB_0E29_47A8_B9B1_98FB1BCAFEBE
+#ifndef __BUS_TYPE_H__
+#define __BUS_TYPE_H__
+
+#include <stdint.h>
+#include "ringbuffer.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define  BUS_NAME_NUM   32
+
+typedef struct 
+{
+    int (*init)(void *self);
+    int (*open)(void *self);
+    int (*close)(void *self);
+    int (*sync_rx)(void *self);
+    int (*sync_tx)(void *self);
+    int (*write)(void *self, uint8_t *data, uint16_t length);
+    int (*read)(void *self, uint8_t *data, uint16_t length);
+}bus_interface_i;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __BUS_TYPE_H__ */
+
+
+#endif /* DA348ADB_0E29_47A8_B9B1_98FB1BCAFEBE */

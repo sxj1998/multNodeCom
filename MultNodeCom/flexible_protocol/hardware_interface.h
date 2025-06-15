@@ -1,5 +1,8 @@
 #ifndef HARDWARE_INTERFACE_H
 #define HARDWARE_INTERFACE_H
+
+#include <stdint.h> // 添加标准整型头文件
+
 // 硬件接口抽象
 typedef struct HardwareInterface HardwareInterface;
 
