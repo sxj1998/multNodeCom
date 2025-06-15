@@ -22,16 +22,6 @@
 /* 完整包大小 = 协议头 + 数据长度 + CRC大小 */
 #define GET_PACKET_LEN(data_length) (sizeof(protocol_t) + (data_length) + sizeof(uint16_t))
 
-/* 日志级别 */
-typedef enum {
-    PROTO_LOG_DEBUG,
-    PROTO_LOG_WARNING,
-    PROTO_LOG_ERROR
-} PROTO_LOG_LEVEL;
-
-/* 日志回调类型定义 */
-typedef void (*log_callback_t)(PROTO_LOG_LEVEL level, const char* fmt, ...);
-
 /* 数据包回调类型定义 */
 typedef void (*packet_callback_t)(void* packet, void* user_data);
 
@@ -96,8 +86,10 @@ typedef struct {
 } proto_parser_t;
 
 /* 接口函数声明 */
-void proto_set_logger(log_callback_t logger);
+
 void* proto_create_packet(uint8_t src_id, uint8_t dst_id, uint8_t cmd, uint16_t length, const uint8_t* data);
+void* proto_create_packet_with_index(uint8_t src_id, uint8_t dst_id, uint8_t cmd, 
+                                   uint16_t length, const uint8_t* data, uint16_t index);
 void proto_packet_free(void** packet);
 void proto_parser_init(proto_parser_t* parser);
 void proto_parser_destroy(proto_parser_t* parser);

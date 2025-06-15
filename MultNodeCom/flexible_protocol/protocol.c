@@ -39,26 +39,31 @@ static PARSE_STATUS (*const state_handlers[])(proto_parser_t*, uint8_t) = {
 /* 创建数据包 */
 void* proto_create_packet(uint8_t src_id, uint8_t dst_id, uint8_t cmd, uint16_t length, const uint8_t* data) {
     static uint16_t index = 0;
+    return proto_create_packet_with_index(src_id, dst_id, cmd, length, data, index++);
+}
 
+/* 创建带索引的数据包 */
+void* proto_create_packet_with_index(uint8_t src_id, uint8_t dst_id, uint8_t cmd, 
+                                   uint16_t length, const uint8_t* data, uint16_t index) {
     if (length > MAX_PACKET_SIZE) {
-        LOG_ERROR("Packet len %u > MAX %u", length, MAX_PACKET_SIZE);
+        LOG_ERROR("[PROTO] Error: Packet len %u > MAX %u", length, MAX_PACKET_SIZE);
         return NULL;
     }
     
     if (length > 0 && !data) {
-        LOG_ERROR("Data required for non-zero len");
+        LOG_ERROR("[PROTO] Error: Data required for non-zero len");
         return NULL;
     }
     
     size_t total_size = GET_PACKET_LEN(length);
     protocol_t* packet = malloc(total_size);
     if (!packet) {
-        LOG_ERROR("Alloc failed size %zu", total_size);
+        LOG_ERROR("[PROTO] Error: Allocation failed size %zu", total_size);
         return NULL;
     }
     
     packet->head = PROTO_HTONS(PACKET_HEAD);
-    packet->index = PROTO_HTONS(index++);
+    packet->index = PROTO_HTONS(index);
     packet->src_id = src_id;
     packet->dst_id = dst_id;
     packet->cmd = cmd;
@@ -72,7 +77,10 @@ void* proto_create_packet(uint8_t src_id, uint8_t dst_id, uint8_t cmd, uint16_t 
     uint16_t net_crc = PROTO_HTONS(crc);
     memcpy(packet->data + length, &net_crc, sizeof(net_crc));
     
-    LOG_DEBUG("Created: src=%u, dst=%u, index=%u, cmd=%u, len=%u", src_id, dst_id, index, cmd, length);
+#if PROTO_ENABLE_LOGGING
+    LOG_DEBUG("[PROTO] Created: src=%u, dst=%u, index=%u, cmd=%u, len=%u", 
+           src_id, dst_id, index, cmd, length);
+#endif
     
     return packet;
 }
