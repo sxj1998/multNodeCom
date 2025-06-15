@@ -1,4 +1,4 @@
-/* ================= router.c ================= */
+/* router.c */
 #include "router.h"
 #include <stdlib.h>
 #include <string.h>
@@ -7,9 +7,10 @@
 #define ROUTING_TABLE_INIT_SIZE 8
 
 // 节点初始化
-void node_init(Node* node, uint8_t node_id) {
+void node_init(Node* node, uint8_t node_id, HardwareInterface* hw_if) {
     memset(node, 0, sizeof(Node));
     node->node_id = node_id;
+    node->hw_if = hw_if;
     proto_parser_init(&node->parser);
     node->routing_capacity = ROUTING_TABLE_INIT_SIZE;
     node->routing_table = malloc(sizeof(RoutingEntry) * node->routing_capacity);
@@ -67,13 +68,13 @@ static void packet_parser_callback(void* packet_, void* user_data) {
         if (node->packet_handler) {
             node->packet_handler(node, packet);
         } else {
-            // proto_packet_free(packet);
+            proto_packet_free((void**)&packet);
         }
     } else {
         // 需要转发
         printf("[NODE %d] Forwarding packet to %d\n", node->node_id, packet->dst_id);
         node_forward_packet(node, packet);
-        // proto_packet_free(packet);
+        proto_packet_free((void**)&packet);
     }
 }
 
@@ -107,7 +108,9 @@ void node_forward_packet(Node* node, protocol_t* packet) {
             
             if (new_pkt) {
                 uint16_t total_len = GET_PACKET_LEN(net_len);
-                hw_if->send(hw_if, (uint8_t*)new_pkt, total_len);
+                if (hw_if && hw_if->ops.write) {
+                    hw_if->ops.write(hw_if, (uint8_t*)new_pkt, total_len);
+                }
                 proto_packet_free(&new_pkt);
             }
             return;
@@ -139,7 +142,10 @@ bool node_send_packet(Node* node, uint8_t dest_id, uint8_t cmd,
             // 发送数据包
             uint16_t net_len = PROTO_NTOHS(((protocol_t*)packet)->length);
             uint16_t total_len = GET_PACKET_LEN(net_len);
-            bool result = hw_if->send(hw_if, (uint8_t*)packet, total_len);
+            bool result = false;
+            if (hw_if && hw_if->ops.write) {
+                result = (hw_if->ops.write(hw_if, (uint8_t*)packet, total_len) == total_len);
+            }
             proto_packet_free(&packet);
             return result;
         }
