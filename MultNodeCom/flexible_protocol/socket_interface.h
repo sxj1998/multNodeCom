@@ -3,6 +3,7 @@
 #define SOCKET_INTERFACE_H
 
 #include "router.h"
+#include "hardware_interface.h"
 #include <stdint.h>
 
 // 创建Socket硬件接口
