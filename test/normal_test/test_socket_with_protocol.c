@@ -3,6 +3,7 @@
 #include "utilsPrintf.h"
 #include "utilsAssert.h"
 #include "socket.h"
+#include "xlog.h"
 
 #include <stdio.h>
 #include <unistd.h>
@@ -27,6 +28,42 @@ pthread_t thread_socket_server_sync_id, thread_socket_client_sync_id;
 
 // 全局退出标志
 volatile int exit_flag = 0;
+
+void custom_log_handler(LogLevel level, const char* message, void* user_data) {
+    // 从用户数据获取日志文件名
+    const char* filename = (const char*)user_data;
+    
+    // 仅记录警告及以上级别的日志到文件
+    if (level >= LOG_LEVEL_WARNING && filename != NULL) {
+        FILE* logfile = fopen(filename, "a");
+        if (logfile) {
+            fprintf(logfile, "%s", message);
+            fclose(logfile);
+        }
+    }
+    
+    // 所有日志都输出到控制台 (带颜色)
+    switch (level) {
+        case LOG_LEVEL_DEBUG:
+            printf("\033[0;36m"); // 青色
+            break;
+        case LOG_LEVEL_INFO:
+            printf("\033[0;32m"); // 绿色
+            break;
+        case LOG_LEVEL_WARNING:
+            printf("\033[0;33m"); // 黄色
+            break;
+        case LOG_LEVEL_ERROR:
+            printf("\033[0;31m"); // 红色
+            break;
+        case LOG_LEVEL_CRITICAL:
+            printf("\033[1;31m"); // 粗体红色
+            break;
+        default:
+            printf("\033[0m"); // 默认
+    }
+    printf("%s\033[0m", message); // 重置颜色
+}
 
 // 信号处理函数
 void sigint_handler(int sig) {
@@ -83,6 +120,11 @@ void* thread_socket_server_sync(void* arg)
     proto_parser_t parser;
     proto_parser_init(&parser);
     proto_parser_set_callback(&parser, packet_handler, NULL);
+
+            // 初始化日志系统
+    log_init(LOG_LEVEL_INFO, 
+            0, 
+            custom_log_handler, NULL);
     
     // 1. 创建服务器套接字
     server_sockfd = create_socket();
@@ -125,6 +167,11 @@ void* thread_socket_client_sync(void* arg)
     proto_parser_init(&parser);
     proto_parser_set_callback(&parser, packet_handler, NULL);
 
+            // 初始化日志系统
+    log_init(LOG_LEVEL_DEBUG, 
+            0, 
+            custom_log_handler, NULL);
+
     // 1. 创建客户端套接字
     int client_sockfd = create_socket();
     
@@ -137,7 +184,7 @@ void* thread_socket_client_sync(void* arg)
     // 4. 发送初始测试数据
     
     // 5. 主循环：每秒发送一次测试数据
-    uint8_t payload[] = {'A', 'B', 'C', 'D', 'E'};
+    uint8_t payload[] = {'A', 'B', 0x5A, 0xA5, 0x11};
     while (!exit_flag)
     {
         uint8_t i=0;
@@ -162,6 +209,7 @@ void* thread_socket_client_sync(void* arg)
 
 int main(void)
 {
+
     signal(SIGINT, sigint_handler);
     pthread_create(&thread_socket_server_sync_id,NULL,thread_socket_server_sync, NULL);
     // pthread_detach(thread_socket_server_sync_id);

@@ -4,6 +4,10 @@
 #include "xlog.h"
 #include <string.h>
 
+#define ESCAPE_CHAR 0x5B
+#define ESCAPE_HEADER_HIGH 0x01
+#define ESCAPE_HEADER_LOW 0x02
+
 /* 状态处理函数声明 */
 static PARSE_STATUS handle_header1(proto_parser_t* parser, uint8_t byte);
 static PARSE_STATUS handle_header2(proto_parser_t* parser, uint8_t byte);
@@ -35,6 +39,37 @@ static PARSE_STATUS (*const state_handlers[])(proto_parser_t*, uint8_t) = {
 };
 
 /* ================= 公共接口函数 ================= */
+static size_t calculate_escaped_length(const uint8_t* src, size_t len) {
+    size_t escaped_len = len;
+    for (size_t i = 0; i < len; i++) {
+        if (src[i] == ((PACKET_HEAD >> 8) & 0xFF) || 
+            src[i] == (PACKET_HEAD & 0xFF) || 
+            src[i] == ESCAPE_CHAR) {
+            escaped_len++;  // 每个需要转义的字符增加1字节
+        }
+    }
+    return escaped_len;
+}
+
+// 执行数据转义
+static void escape_data(uint8_t* dest, const uint8_t* src, size_t len, size_t* escaped_len) {
+    size_t j = 0;
+    for (size_t i = 0; i < len; i++) {
+        if (src[i] == ((PACKET_HEAD >> 8) & 0xFF)) {
+            dest[j++] = ESCAPE_CHAR;
+            dest[j++] = ESCAPE_HEADER_HIGH;
+        } else if (src[i] == (PACKET_HEAD & 0xFF)) {
+            dest[j++] = ESCAPE_CHAR;
+            dest[j++] = ESCAPE_HEADER_LOW;
+        } else if (src[i] == ESCAPE_CHAR) {
+            dest[j++] = ESCAPE_CHAR;
+            dest[j++] = ESCAPE_CHAR;
+        } else {
+            dest[j++] = src[i];
+        }
+    }
+    *escaped_len = j;
+}
 
 /* 创建数据包 */
 void* proto_create_packet(uint8_t src_id, uint8_t dst_id, uint8_t cmd, uint16_t length, const uint8_t* data) {
@@ -54,8 +89,12 @@ void* proto_create_packet_with_index(uint8_t src_id, uint8_t dst_id, uint8_t cmd
         LOG_ERROR("[PROTO] Error: Data required for non-zero len");
         return NULL;
     }
-    
-    size_t total_size = GET_PACKET_LEN(length);
+
+    // 计算转义后的数据长度
+    size_t escaped_len = (length > 0) ? calculate_escaped_length(data, length) : 0;
+    LOG_INFO("escaped_len: %d , raw length %d , escape char num: %d ", escaped_len, length, escaped_len-length);
+
+    size_t total_size = GET_PACKET_LEN(escaped_len);
     protocol_t* packet = malloc(total_size);
     if (!packet) {
         LOG_ERROR("[PROTO] Error: Allocation failed size %zu", total_size);
@@ -69,19 +108,22 @@ void* proto_create_packet_with_index(uint8_t src_id, uint8_t dst_id, uint8_t cmd
     packet->cmd = cmd;
     packet->length = PROTO_HTONS(length);
     
+    uint8_t tmp_print[512] = {};
+    memcpy(tmp_print, packet, total_size);
+    LOG_BYTE_ARRAY(LOG_LEVEL_INFO, (uint8_t*)tmp_print, total_size); 
+
+    // 转义数据并复制到包中
     if (length > 0) {
-        memcpy(packet->data, data, length);
+        uint8_t* data_dest = packet->data;
+        escape_data(data_dest, data, length, &escaped_len);
     }
-    
     uint16_t crc = crc16((const char*)packet, sizeof(protocol_t) + length);
     uint16_t net_crc = PROTO_HTONS(crc);
     memcpy(packet->data + length, &net_crc, sizeof(net_crc));
     
-#if PROTO_ENABLE_LOGGING
-    LOG_DEBUG("[PROTO] Created: src=%u, dst=%u, index=%u, cmd=%u, len=%u", 
+    LOG_INFO("[PROTO] Created: src=%u, dst=%u, index=%u, cmd=%u, len=%u", 
            src_id, dst_id, index, cmd, length);
-#endif
-    
+ 
     return packet;
 }
 

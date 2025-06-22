@@ -100,6 +100,81 @@ void log_message(LogLevel level, const char* file, const char* function, int lin
     default_logger.callback(level, log_buffer, default_logger.user_data);
 }
 
+void log_array(LogLevel level, const char* file, const char* function, int line,
+               const void* arr, size_t count, size_t elem_size) {
+    // 静态检查：日志级别无效或回调未设置时直接返回
+    if (default_logger.min_level == LOG_LEVEL_NONE || 
+        default_logger.callback == NULL || 
+        arr == NULL || count == 0) {
+        return;
+    }
+
+    char* buf = log_buffer;
+    size_t pos = 0;
+    size_t max_size = sizeof(log_buffer);
+
+    // 1. 构建日志头（复用原有逻辑）
+    if (default_logger.options & LOG_OPT_TIMESTAMP) {
+        pos += snprintf(buf + pos, max_size - pos, "[%s] ", get_timestamp());
+    }
+
+    // 添加日志级别标签
+    const char* level_str = "UNKNOWN";
+    switch (level) {
+        case LOG_LEVEL_DEBUG:    level_str = "DEBUG"; break;
+        case LOG_LEVEL_INFO:     level_str = "INFO"; break;
+        case LOG_LEVEL_WARNING:  level_str = "WARN"; break;
+        case LOG_LEVEL_ERROR:    level_str = "ERROR"; break;
+        case LOG_LEVEL_CRITICAL: level_str = "CRITICAL"; break;
+        default: break;
+    }
+    pos += snprintf(buf + pos, max_size - pos, "[%s] [ARRAY] ", level_str);
+
+    // 添加位置信息
+    if (default_logger.options & LOG_OPT_FILENAME) {
+        pos += snprintf(buf + pos, max_size - pos, "[%s", shorten_filename(file));
+        if (default_logger.options & LOG_OPT_LINENUM) {
+            pos += snprintf(buf + pos, max_size - pos, ":%d", line);
+        }
+        if (default_logger.options & LOG_OPT_FUNCTION) {
+            pos += snprintf(buf + pos, max_size - pos, " %s", function);
+        }
+        pos += snprintf(buf + pos, max_size - pos, "] ");
+    }
+
+    // 2. 按字节遍历数组（统一 %02X 格式）
+    const uint8_t* byte_ptr = (const uint8_t*)arr;
+    size_t total_bytes = count * elem_size;
+
+    for (size_t i = 0; i < total_bytes; i++) {
+        // 每 elem_size 字节添加分组标记（增强可读性）
+        if (i % elem_size == 0 && i != 0) {
+            pos += snprintf(buf + pos, max_size - pos, "| ");
+        }
+
+        // 按字节打印十六进制值
+        pos += snprintf(buf + pos, max_size - pos, "%02X ", byte_ptr[i]);
+
+        // 缓冲区溢出保护（预留32字节安全空间）
+        if (pos > max_size - 32) {
+            pos += snprintf(buf + pos, max_size - pos, "...(truncated)");
+            break;
+        }
+    }
+
+    // 3. 结束日志行
+    if (pos < max_size - 1) {
+        buf[pos++] = '\n';
+        buf[pos] = '\0';
+    } else {
+        buf[max_size - 2] = '\n';
+        buf[max_size - 1] = '\0';
+    }
+
+    // 调用日志回调
+    default_logger.callback(level, buf, default_logger.user_data);
+}
+
 /* API 实现 */
 
 void log_init(LogLevel min_level, uint32_t options, LogCallback callback, void* user_data) {

@@ -8,7 +8,6 @@
 /* 配置选项 */
 #define PACKET_HEAD 0x5AA5
 #define MAX_PACKET_SIZE 512
-#define PROTO_ENABLE_LOGGING 0  /* 默认关闭日志 */
 
 /* 字节序转换 */
 #if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)

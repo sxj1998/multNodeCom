@@ -69,6 +69,25 @@ void log_set_options(uint32_t options);
 // 核心日志函数 (实际实现应放在 .c 文件中)
 void log_message(LogLevel level, const char* file, const char* function, int line, const char* fmt, ...);
 
+/* 数组日志函数声明 */
+void log_array(LogLevel level, const char* file, const char* function, int line,
+               const void* arr, size_t count, size_t elem_size);
+
+/* 简化调用的宏 */
+#define LOG_ARRAY(level, arr, count, elem_size) \
+    if (default_logger.min_level <= level) \
+        log_array(level, __FILE__, __FUNCTION__, __LINE__, arr, count, elem_size)
+
+/* 常用类型特化宏 */
+#define LOG_BYTE_ARRAY(level, arr, count) \
+    LOG_ARRAY(level, arr, count, sizeof(uint8_t))
+
+#define LOG_INT_ARRAY(level, arr, count) \
+    LOG_ARRAY(level, arr, count, sizeof(int))
+
+#define LOG_FLOAT_ARRAY(level, arr, count) \
+    LOG_ARRAY(level, arr, count, sizeof(float))
+
 /* 日志宏 - 自动捕获位置信息 */
 #define LOG_DEBUG(fmt, ...) \
     do { \
