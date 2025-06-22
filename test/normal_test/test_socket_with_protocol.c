@@ -195,7 +195,7 @@ void* thread_socket_client_sync(void* arg)
             break;
         }
         // size_t total_size = GET_PACKET_LEN(sizeof(payload));
-        size_t total_size = proto_get_result_length(packet);
+        size_t total_size = PACKET_SEND_LEN(packet);
         
         socket_write(client_sockfd, (void*)packet, total_size); // 发送10字节数据
         proto_packet_free((void**)&packet);

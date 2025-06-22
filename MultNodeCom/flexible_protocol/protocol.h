@@ -21,6 +21,7 @@
 /* 完整包大小 = 协议头 + 数据长度 + CRC大小 */
 #define GET_PACKET_LEN(data_length) (sizeof(protocol_t) + (data_length) + sizeof(uint16_t))
 
+#define PACKET_SEND_LEN(packet) (proto_escaped_length(packet))
 /* 数据包回调类型定义 */
 typedef void (*packet_callback_t)(void* packet, void* user_data);
 
@@ -96,6 +97,6 @@ void proto_parser_destroy(proto_parser_t* parser);
 void proto_parser_reset(proto_parser_t* parser);
 void proto_parser_set_callback(proto_parser_t* parser, packet_callback_t callback, void* user_data);
 PARSE_STATUS proto_packet_parse(proto_parser_t* parser, uint8_t byte);
-int proto_get_result_length(protocol_t* packet);
+int proto_escaped_length(protocol_t* packet);
 
 #endif // PROTOCOL_H

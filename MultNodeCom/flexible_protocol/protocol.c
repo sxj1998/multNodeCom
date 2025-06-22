@@ -4,6 +4,14 @@
 #include "xlog.h"
 #include <string.h>
 
+/* 协议帧格式:
+ * [0x5A][0xA5][index_h][index_l][src][dst][cmd][len_h][len_l][data...][crc_h][crc_l]
+ * 转义规则: 
+ *   0x5A -> 0x5B 0x01
+ *   0xA5 -> 0x5B 0x02
+ *   0x5B -> 0x5B 0x5B
+ */
+
 #define ESCAPE_CHAR 0x5B
 #define ESCAPE_HEADER_HIGH 0x01
 #define ESCAPE_HEADER_LOW 0x02
@@ -73,7 +81,7 @@ static void escape_data(uint8_t* dest, const uint8_t* src, size_t len, size_t* e
     *escaped_len = j;
 }
 
-int proto_get_result_length(protocol_t* packet){
+int proto_escaped_length(protocol_t* packet){
     return GET_PACKET_LEN(calculate_escaped_length(packet->data, PROTO_NTOHS(packet->length)));
 }
 
@@ -98,7 +106,7 @@ void* proto_create_packet_with_index(uint8_t src_id, uint8_t dst_id, uint8_t cmd
 
     // 计算转义后的数据长度
     size_t escaped_len = (length > 0) ? calculate_escaped_length(data, length) : 0;
-    LOG_INFO("escaped_len: %d , raw length %d , escape char num: %d ", escaped_len, length, escaped_len-length);
+    LOG_DEBUG("escaped_len: %d , raw length %d , escape char num: %d ", escaped_len, length, escaped_len-length);
 
     size_t total_size = GET_PACKET_LEN(escaped_len);
     protocol_t* packet = malloc(total_size);
@@ -114,15 +122,6 @@ void* proto_create_packet_with_index(uint8_t src_id, uint8_t dst_id, uint8_t cmd
     packet->cmd = cmd;
     packet->length = PROTO_HTONS(length);
 
-    /**************debug**************/
-    uint8_t tmp_print[512] = {};
-    size_t raw_size = GET_PACKET_LEN(length);
-    memcpy(packet->data, data, length);
-    memcpy(tmp_print, packet, raw_size);
-    LOG_INFO("RAW DATA %d byte: ", raw_size);
-    LOG_BYTE_ARRAY(LOG_LEVEL_INFO, (uint8_t*)tmp_print, raw_size); 
-    /**************debug**************/
-
     // 转义数据并复制到包中
     if (length > 0) {
         escape_data(packet->data, data, length, &escaped_len);
@@ -130,13 +129,6 @@ void* proto_create_packet_with_index(uint8_t src_id, uint8_t dst_id, uint8_t cmd
     uint16_t crc = crc16((const char*)packet, sizeof(protocol_t) + escaped_len);
     uint16_t net_crc = PROTO_HTONS(crc);
     memcpy(packet->data + escaped_len, &net_crc, sizeof(net_crc));
-
-    /**************debug**************/
-    memset(tmp_print, 0, 512);
-    memcpy(tmp_print, packet, total_size);
-    LOG_INFO("ESCAPED DATA %d bytes: ", total_size);
-    LOG_BYTE_ARRAY(LOG_LEVEL_INFO, (uint8_t*)tmp_print, total_size); 
-    /**************debug**************/
     
     LOG_INFO("[PROTO] Created: src=%u, dst=%u, index=%u, cmd=%u, len=%u", 
            src_id, dst_id, index, cmd, length);
@@ -400,7 +392,6 @@ static PARSE_STATUS handle_crc2(proto_parser_t* parser, uint8_t byte) {
 
 /* 主解析函数 */
 PARSE_STATUS proto_packet_parse(proto_parser_t* parser, uint8_t byte) {
-    LOG_INFO("parse byte: %02x ", byte);
     if (!parser) return PARSE_ERROR_INTERNAL;
     if (parser->state >= sizeof(state_handlers)/sizeof(state_handlers[0])) {
         LOG_ERROR("Invalid state %d", parser->state);
