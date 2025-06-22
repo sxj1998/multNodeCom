@@ -78,7 +78,7 @@ void packet_handler(void* packet, void* user_data) {
     // 处理包数据...
     printf("Data: ");
     for (int i = 0; i < length; i++) {
-        putchar(p->data[i]);
+        printf("%02X ",p->data[i]);
     }
     printf("\n");
     
@@ -194,11 +194,13 @@ void* thread_socket_client_sync(void* arg)
             fprintf(stderr, "Failed to create packet\n");
             break;
         }
-        size_t total_size = GET_PACKET_LEN(sizeof(payload));
+        // size_t total_size = GET_PACKET_LEN(sizeof(payload));
+        size_t total_size = proto_get_result_length(packet);
+        
         socket_write(client_sockfd, (void*)packet, total_size); // 发送10字节数据
         proto_packet_free((void**)&packet);
 
-        printf("send----->\n"); // 打印发送提示
+        printf("send %ld bytes----->\n", total_size); // 打印发送提示
         usleep(100*1000); // 休眠1秒（1000毫秒）
     }
     close(client_sockfd);  // 关闭客户端套接字

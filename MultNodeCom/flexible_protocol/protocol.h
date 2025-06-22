@@ -32,7 +32,8 @@ typedef enum {
     PARSE_ERROR_LENGTH,     // 长度错误
     PARSE_ERROR_CRC,        // CRC校验失败
     PARSE_ERROR_MEMORY,     // 内存错误
-    PARSE_ERROR_INTERNAL    // 内部错误
+    PARSE_ERROR_INTERNAL,   // 内部错误
+    PARSE_ERROR_ESCAPE      // 转义错误
 } PARSE_STATUS;
 
 /* 状态机状态枚举 */
@@ -47,6 +48,7 @@ typedef enum {
     STATE_LEN1,             // 等待长度高字节
     STATE_LEN2,             // 等待长度低字节
     STATE_DATA,             // 等待数据
+    STATE_ESCAPE,           // 转义序列处理状态
     STATE_CRC1,             // 等待CRC高字节
     STATE_CRC2,             // 等待CRC低字节
     STATE_COUNT             // 状态总数
@@ -85,7 +87,6 @@ typedef struct {
 } proto_parser_t;
 
 /* 接口函数声明 */
-
 void* proto_create_packet(uint8_t src_id, uint8_t dst_id, uint8_t cmd, uint16_t length, const uint8_t* data);
 void* proto_create_packet_with_index(uint8_t src_id, uint8_t dst_id, uint8_t cmd, 
                                    uint16_t length, const uint8_t* data, uint16_t index);
@@ -95,5 +96,6 @@ void proto_parser_destroy(proto_parser_t* parser);
 void proto_parser_reset(proto_parser_t* parser);
 void proto_parser_set_callback(proto_parser_t* parser, packet_callback_t callback, void* user_data);
 PARSE_STATUS proto_packet_parse(proto_parser_t* parser, uint8_t byte);
+int proto_get_result_length(protocol_t* packet);
 
 #endif // PROTOCOL_H

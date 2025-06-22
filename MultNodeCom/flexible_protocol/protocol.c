@@ -19,6 +19,7 @@ static PARSE_STATUS handle_cmd(proto_parser_t* parser, uint8_t byte);
 static PARSE_STATUS handle_len1(proto_parser_t* parser, uint8_t byte);
 static PARSE_STATUS handle_len2(proto_parser_t* parser, uint8_t byte);
 static PARSE_STATUS handle_data(proto_parser_t* parser, uint8_t byte);
+static PARSE_STATUS handle_escape(proto_parser_t* parser, uint8_t byte);
 static PARSE_STATUS handle_crc1(proto_parser_t* parser, uint8_t byte);
 static PARSE_STATUS handle_crc2(proto_parser_t* parser, uint8_t byte);
 
@@ -34,12 +35,13 @@ static PARSE_STATUS (*const state_handlers[])(proto_parser_t*, uint8_t) = {
     handle_len1,     // STATE_LEN1
     handle_len2,     // STATE_LEN2
     handle_data,     // STATE_DATA
+    handle_escape,   // STATE_ESCAPE
     handle_crc1,     // STATE_CRC1
     handle_crc2      // STATE_CRC2
 };
 
 /* ================= 公共接口函数 ================= */
-static size_t calculate_escaped_length(const uint8_t* src, size_t len) {
+static inline size_t calculate_escaped_length(const uint8_t* src, size_t len) {
     size_t escaped_len = len;
     for (size_t i = 0; i < len; i++) {
         if (src[i] == ((PACKET_HEAD >> 8) & 0xFF) || 
@@ -69,6 +71,10 @@ static void escape_data(uint8_t* dest, const uint8_t* src, size_t len, size_t* e
         }
     }
     *escaped_len = j;
+}
+
+int proto_get_result_length(protocol_t* packet){
+    return GET_PACKET_LEN(calculate_escaped_length(packet->data, PROTO_NTOHS(packet->length)));
 }
 
 /* 创建数据包 */
@@ -295,12 +301,69 @@ static PARSE_STATUS handle_data(proto_parser_t* parser, uint8_t byte) {
         proto_parser_reset(parser);
         return PARSE_ERROR_LENGTH;
     }
+
+    // 处理转义字符
+    if (byte == ESCAPE_CHAR) {
+        parser->state = STATE_ESCAPE;
+        return PARSE_INCOMPLETE;
+    }
+
+    // 处理特殊字节（0x5A, 0xA5）
+    if (byte == ((PACKET_HEAD >> 8) & 0xFF) || byte == (PACKET_HEAD & 0xFF)) {
+        LOG_WARN("Unexcaped special byte 0x%02X in data", byte);
+        // 注意：这里可以选择严格模式，遇到未转义的特殊字节直接报错
+        // proto_parser_reset(parser);
+        // return PARSE_ERROR_ESCAPE;
+    }
     
     parser->packet->data[parser->data_index++] = byte;
     parser->crc = crc16_update(parser->crc, byte);
     
     if (parser->data_index >= parser->expected_len) {
         parser->state = STATE_CRC1;
+    }
+    
+    return PARSE_INCOMPLETE;
+}
+
+/* 新增转义状态处理函数 */
+static PARSE_STATUS handle_escape(proto_parser_t* parser, uint8_t byte) {
+    uint8_t unescaped_byte;
+    
+    switch (byte) {
+        case ESCAPE_HEADER_HIGH:
+            unescaped_byte = ((PACKET_HEAD >> 8) & 0xFF); // 0x5A
+            break;
+        case ESCAPE_HEADER_LOW:
+            unescaped_byte = (PACKET_HEAD & 0xFF);        // 0xA5
+            break;
+        case ESCAPE_CHAR:
+            unescaped_byte = ESCAPE_CHAR;                 // 0x5B
+            break;
+        default:
+            LOG_ERROR("Invalid escape sequence: 0x5B 0x%02X", byte);
+            proto_parser_reset(parser);
+            return PARSE_ERROR_ESCAPE;
+    }
+    
+    // 更新CRC - 使用原始字节（转义序列）
+    parser->crc = crc16_update(parser->crc, ESCAPE_CHAR);
+    parser->crc = crc16_update(parser->crc, byte);
+    
+    // 存储反转义后的字节
+    if (parser->data_index >= parser->expected_len) {
+        LOG_ERROR("Data index %u overflow during unescape", parser->data_index);
+        proto_parser_reset(parser);
+        return PARSE_ERROR_LENGTH;
+    }
+    
+    parser->packet->data[parser->data_index++] = unescaped_byte;
+    
+    // 检查数据是否接收完成
+    if (parser->data_index >= parser->expected_len) {
+        parser->state = STATE_CRC1;
+    } else {
+        parser->state = STATE_DATA;
     }
     
     return PARSE_INCOMPLETE;
@@ -337,6 +400,7 @@ static PARSE_STATUS handle_crc2(proto_parser_t* parser, uint8_t byte) {
 
 /* 主解析函数 */
 PARSE_STATUS proto_packet_parse(proto_parser_t* parser, uint8_t byte) {
+    LOG_INFO("parse byte: %02x ", byte);
     if (!parser) return PARSE_ERROR_INTERNAL;
     if (parser->state >= sizeof(state_handlers)/sizeof(state_handlers[0])) {
         LOG_ERROR("Invalid state %d", parser->state);
