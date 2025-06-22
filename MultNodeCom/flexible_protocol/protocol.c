@@ -55,13 +55,12 @@ static inline size_t calculate_escaped_length(const uint8_t* src, size_t len) {
         if (src[i] == ((PACKET_HEAD >> 8) & 0xFF) || 
             src[i] == (PACKET_HEAD & 0xFF) || 
             src[i] == ESCAPE_CHAR) {
-            escaped_len++;  // 每个需要转义的字符增加1字节
+            escaped_len++; 
         }
     }
     return escaped_len;
 }
 
-// 执行数据转义
 static void escape_data(uint8_t* dest, const uint8_t* src, size_t len, size_t* escaped_len) {
     size_t j = 0;
     for (size_t i = 0; i < len; i++) {
@@ -157,8 +156,6 @@ void proto_parser_destroy(proto_parser_t* parser) {
     proto_parser_reset(parser);
 }
 
-/* 重置解析器状态 */
-/* 重置解析器状态 */
 void proto_parser_reset(proto_parser_t* parser) {
     if (!parser) return;
     
@@ -303,9 +300,6 @@ static PARSE_STATUS handle_data(proto_parser_t* parser, uint8_t byte) {
     // 处理特殊字节（0x5A, 0xA5）
     if (byte == ((PACKET_HEAD >> 8) & 0xFF) || byte == (PACKET_HEAD & 0xFF)) {
         LOG_WARN("Unexcaped special byte 0x%02X in data", byte);
-        // 注意：这里可以选择严格模式，遇到未转义的特殊字节直接报错
-        // proto_parser_reset(parser);
-        // return PARSE_ERROR_ESCAPE;
     }
     
     parser->packet->data[parser->data_index++] = byte;
@@ -324,13 +318,13 @@ static PARSE_STATUS handle_escape(proto_parser_t* parser, uint8_t byte) {
     
     switch (byte) {
         case ESCAPE_HEADER_HIGH:
-            unescaped_byte = ((PACKET_HEAD >> 8) & 0xFF); // 0x5A
+            unescaped_byte = ((PACKET_HEAD >> 8) & 0xFF); 
             break;
         case ESCAPE_HEADER_LOW:
-            unescaped_byte = (PACKET_HEAD & 0xFF);        // 0xA5
+            unescaped_byte = (PACKET_HEAD & 0xFF);        
             break;
         case ESCAPE_CHAR:
-            unescaped_byte = ESCAPE_CHAR;                 // 0x5B
+            unescaped_byte = ESCAPE_CHAR;                 
             break;
         default:
             LOG_ERROR("Invalid escape sequence: 0x5B 0x%02X", byte);
