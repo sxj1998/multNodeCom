@@ -184,12 +184,12 @@ void* thread_socket_client_sync(void* arg)
     // 4. 发送初始测试数据
     
     // 5. 主循环：每秒发送一次测试数据
-    uint8_t payload[] = {'A', 'B', 0x5A, 0xA5, 0x11};
+    uint8_t payload[] = {0x11, 0x5B, 0x5A, 0xA5, 0x55};
     while (!exit_flag)
     {
-        uint8_t i=0;
-        payload[4] = i++;
-        protocol_t* packet = proto_create_packet(0x01, 0x02, 0x03, sizeof(payload), payload);
+        // uint8_t i=0;
+        // payload[4] = i++;
+        protocol_t* packet = proto_create_packet(0x01, 0x02, 0x03, 5, payload);
         if (!packet) {
             fprintf(stderr, "Failed to create packet\n");
             break;

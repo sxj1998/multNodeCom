@@ -107,19 +107,30 @@ void* proto_create_packet_with_index(uint8_t src_id, uint8_t dst_id, uint8_t cmd
     packet->dst_id = dst_id;
     packet->cmd = cmd;
     packet->length = PROTO_HTONS(length);
-    
+
+    /**************debug**************/
     uint8_t tmp_print[512] = {};
-    memcpy(tmp_print, packet, total_size);
-    LOG_BYTE_ARRAY(LOG_LEVEL_INFO, (uint8_t*)tmp_print, total_size); 
+    size_t raw_size = GET_PACKET_LEN(length);
+    memcpy(packet->data, data, length);
+    memcpy(tmp_print, packet, raw_size);
+    LOG_INFO("RAW DATA %d byte: ", raw_size);
+    LOG_BYTE_ARRAY(LOG_LEVEL_INFO, (uint8_t*)tmp_print, raw_size); 
+    /**************debug**************/
 
     // 转义数据并复制到包中
     if (length > 0) {
-        uint8_t* data_dest = packet->data;
-        escape_data(data_dest, data, length, &escaped_len);
+        escape_data(packet->data, data, length, &escaped_len);
     }
-    uint16_t crc = crc16((const char*)packet, sizeof(protocol_t) + length);
+    uint16_t crc = crc16((const char*)packet, sizeof(protocol_t) + escaped_len);
     uint16_t net_crc = PROTO_HTONS(crc);
-    memcpy(packet->data + length, &net_crc, sizeof(net_crc));
+    memcpy(packet->data + escaped_len, &net_crc, sizeof(net_crc));
+
+    /**************debug**************/
+    memset(tmp_print, 0, 512);
+    memcpy(tmp_print, packet, total_size);
+    LOG_INFO("ESCAPED DATA %d bytes: ", total_size);
+    LOG_BYTE_ARRAY(LOG_LEVEL_INFO, (uint8_t*)tmp_print, total_size); 
+    /**************debug**************/
     
     LOG_INFO("[PROTO] Created: src=%u, dst=%u, index=%u, cmd=%u, len=%u", 
            src_id, dst_id, index, cmd, length);
