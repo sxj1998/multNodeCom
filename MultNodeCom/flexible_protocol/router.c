@@ -1,156 +1,154 @@
-/* router.c */
 #include "router.h"
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-
-#define ROUTING_TABLE_INIT_SIZE 8
-
-// 节点初始化
-void node_init(Node* node, uint8_t node_id, HardwareInterface* hw_if) {
-    memset(node, 0, sizeof(Node));
-    node->node_id = node_id;
-    node->hw_if = hw_if;
-    proto_parser_init(&node->parser);
-    node->routing_capacity = ROUTING_TABLE_INIT_SIZE;
-    node->routing_table = malloc(sizeof(RoutingEntry) * node->routing_capacity);
-}
-
-// 节点销毁
-void node_destroy(Node* node) {
-    proto_parser_destroy(&node->parser);
-    free(node->routing_table);
-}
-
-// 设置包处理器
-void node_set_packet_handler(Node* node, void (*handler)(Node*, protocol_t*)) {
-    node->packet_handler = handler;
-}
-
-// 添加路由条目
-void node_add_route(Node* node, uint8_t dest_id, HardwareInterface* hw_if) {
-    // 检查是否已存在
-    for (int i = 0; i < node->routing_size; i++) {
-        if (node->routing_table[i].dest_id == dest_id) {
-            node->routing_table[i].hw_if = hw_if;
-            return;
-        }
-    }
-    
-    // 扩容检查
-    if (node->routing_size >= node->routing_capacity) {
-        int new_capacity = node->routing_capacity * 2;
-        RoutingEntry* new_table = realloc(node->routing_table, 
-                                        sizeof(RoutingEntry) * new_capacity);
-        if (!new_table) return;
-        node->routing_table = new_table;
-        node->routing_capacity = new_capacity;
-    }
-    
-    // 添加新条目
-    node->routing_table[node->routing_size++] = (RoutingEntry){
-        .dest_id = dest_id,
-        .hw_if = hw_if
-    };
-}
+#include "xlog.h"
 
 // 解析器回调函数
-static void packet_parser_callback(void* packet_, void* user_data) {
-    Node* node = (Node*)user_data;
-    protocol_t* packet = (protocol_t*)packet_;
-    uint16_t net_len = PROTO_NTOHS(packet->length);
+static void packet_received_callback(void* packet, void* user_data);
+
+void node_init(Node* node, uint8_t node_id, int max_interfaces) {
+    if (!node) return;
     
-    if (packet->dst_id == node->node_id) {
-        // 目标为本节点
-        printf("[NODE %d] Received packet from %d (cmd=0x%02x, len=%d)\n",
-               node->node_id, packet->src_id, packet->cmd, net_len);
-        
-        if (node->packet_handler) {
-            node->packet_handler(node, packet);
-        } else {
-            proto_packet_free((void**)&packet);
-        }
-    } else {
-        // 需要转发
-        printf("[NODE %d] Forwarding packet to %d\n", node->node_id, packet->dst_id);
-        node_forward_packet(node, packet);
-        proto_packet_free((void**)&packet);
+    memset(node, 0, sizeof(Node));
+    node->node_id = node_id;
+    node->max_interfaces = max_interfaces;
+    
+    if (max_interfaces > 0) {
+        node->interfaces = calloc(max_interfaces, sizeof(NodeInterface));
     }
 }
 
-// 接收字节处理
-PARSE_STATUS node_receive_byte(Node* node, uint8_t byte) {
-    static bool callback_set = false;
-    if (!callback_set) {
-        proto_parser_set_callback(&node->parser, packet_parser_callback, node);
-        callback_set = true;
+void node_destroy(Node* node) {
+    if (!node) return;
+    
+    // 释放所有接口的解析器
+    for (int i = 0; i < node->interface_count; i++) {
+        proto_parser_destroy(&node->interfaces[i].parser);
     }
-    proto_packet_parse(&node->parser, byte);
+    
+    // 释放接口数组
+    free(node->interfaces);
+    memset(node, 0, sizeof(Node));
 }
 
-// 转发数据包
-void node_forward_packet(Node* node, protocol_t* packet) {
-    // 查找路由
-    for (int i = 0; i < node->routing_size; i++) {
-        if (node->routing_table[i].dest_id == packet->dst_id) {
-            HardwareInterface* hw_if = node->routing_table[i].hw_if;
-            
-            // 重新打包数据（保持原始源和目标）
-            uint16_t net_len = PROTO_NTOHS(packet->length);
-            void* new_pkt = proto_create_packet_with_index(
-                packet->src_id, 
-                packet->dst_id,
-                packet->cmd,
-                net_len,
-                packet->data,
-                PROTO_NTOHS(packet->index)
+void node_set_packet_handler(Node* node, void (*handler)(Node*, protocol_t*)) {
+    if (node) {
+        node->packet_handler = handler;
+    }
+}
+
+bool node_add_interface(Node* node, HardwareInterface* hw_if) {
+    if (!node || !hw_if || node->interface_count >= node->max_interfaces) {
+        return false;
+    }
+    
+    // 初始化接口
+    NodeInterface* iface = &node->interfaces[node->interface_count];
+    iface->hw_if = hw_if;
+    
+    // 初始化协议解析器
+    proto_parser_init(&iface->parser);
+    proto_parser_set_callback(&iface->parser, packet_received_callback, node);
+    
+    node->interface_count++;
+    return true;
+}
+
+PARSE_STATUS node_receive_byte(Node* node, int interface_index, uint8_t byte) {
+    if (!node || interface_index < 0 || interface_index >= node->interface_count) {
+        return PARSE_ERROR_INTERNAL;
+    }
+    
+    // 将字节传递给对应接口的解析器
+    return proto_packet_parse(&node->interfaces[interface_index].parser, byte);
+}
+
+void node_forward_packet(Node* node, protocol_t* packet, int exclude_interface) {
+    if (!node || !packet) return;
+    
+    // 获取数据包长度
+    uint16_t data_len = PROTO_NTOHS(packet->length);
+    size_t total_len = GET_PACKET_LEN(data_len);
+    
+    // 遍历所有接口（排除接收接口）
+    for (int i = 0; i < node->interface_count; i++) {
+        if (i != exclude_interface) {
+            node->interfaces[i].hw_if->ops.write(
+                node->interfaces[i].hw_if, 
+                (uint8_t*)packet, 
+                total_len
             );
-            
-            if (new_pkt) {
-                uint16_t total_len = GET_PACKET_LEN(net_len);
-                if (hw_if && hw_if->ops.write) {
-                    hw_if->ops.write(hw_if, (uint8_t*)new_pkt, total_len);
-                }
-                proto_packet_free(&new_pkt);
-            }
-            return;
         }
     }
-    
-    printf("[NODE %d] No route to node %d\n", node->node_id, packet->dst_id);
 }
 
-// 发送数据包
 bool node_send_packet(Node* node, uint8_t dest_id, uint8_t cmd, 
                      uint16_t data_len, const uint8_t* data) {
-    // 查找路由
-    for (int i = 0; i < node->routing_size; i++) {
-        if (node->routing_table[i].dest_id == dest_id) {
-            HardwareInterface* hw_if = node->routing_table[i].hw_if;
-            
-            // 创建数据包
-            void* packet = proto_create_packet(
-                node->node_id,
-                dest_id,
-                cmd,
-                data_len,
-                data
-            );
-            
-            if (!packet) return false;
-            
-            // 发送数据包
-            uint16_t net_len = PROTO_NTOHS(((protocol_t*)packet)->length);
-            uint16_t total_len = GET_PACKET_LEN(net_len);
-            bool result = false;
-            if (hw_if && hw_if->ops.write) {
-                result = (hw_if->ops.write(hw_if, (uint8_t*)packet, total_len) == total_len);
-            }
-            proto_packet_free(&packet);
-            return result;
+    if (!node) return false;
+    
+    // 创建数据包
+    void* packet = proto_create_packet(node->node_id, dest_id, cmd, data_len, data);
+    if (!packet) {
+        LOG_ERROR("Failed to create packet for %u", dest_id);
+        return false;
+    }
+    
+    // 获取数据包长度
+    uint16_t packet_len = proto_escaped_length((protocol_t*)packet);
+    
+    // 发送到所有接口
+    bool success = true;
+    for (int i = 0; i < node->interface_count; i++) {
+        int result = node->interfaces[i].hw_if->ops.write(
+            node->interfaces[i].hw_if, 
+            (uint8_t*)packet, 
+            packet_len
+        );
+        
+        if (result != packet_len) {
+            success = false;
         }
     }
     
-    printf("[NODE %d] No route to node %d\n", node->node_id, dest_id);
-    return false;
+    // 释放数据包
+    proto_packet_free(&packet);
+    return success;
+}
+
+// 数据包接收回调函数
+static void packet_received_callback(void* packet, void* user_data) {
+    Node* node = (Node*)user_data;
+    protocol_t* proto_packet = (protocol_t*)packet;
+    
+    // 检查目的地址
+    if (proto_packet->dst_id == node->node_id) {
+        // 如果是本节点，调用处理函数
+        if (node->packet_handler) {
+            node->packet_handler(node, proto_packet);
+        } else {
+            LOG_INFO("Received packet for local node, but no handler set");
+            proto_packet_free(&packet);
+        }
+    } else {
+        // 查找接收接口的索引 - 修复指针比较问题
+        int receive_interface = -1;
+        for (int i = 0; i < node->interface_count; i++) {
+            // 比较指针值而不是指针的地址
+            if (node->interfaces[i].parser.packet == proto_packet) {
+                receive_interface = i;
+                break;
+            }
+        }
+        
+        if (receive_interface == -1) {
+            LOG_WARN("Failed to find receiving interface for packet");
+            proto_packet_free(&packet);
+            return;
+        }
+        
+        // 转发数据包（排除接收接口）
+        LOG_INFO("Forwarding packet for destination %u", proto_packet->dst_id);
+        node_forward_packet(node, proto_packet, receive_interface);
+        proto_packet_free(&packet);
+    }
 }
